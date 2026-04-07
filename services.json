@@ -1,0 +1,11 @@
+[
+  { "id": 3859, "name": "Instagram Video İzlenme - Instant", "price": 0.08, "min": 100, "max": 2147483647 },
+  { "id": 4095, "name": "Keşfet Etkili Video İzlenme - Hızlı", "price": 0.09, "min": 100, "max": 2000000 },
+  { "id": 4479, "name": "Instagram Karışık Takipçi (Düşüş Olabilir)", "price": 7.14, "min": 10, "max": 25000 },
+  { "id": 4453, "name": "TikTok Video İzlenme - Ekonomik", "price": 0.22, "min": 100, "max": 2147483647 },
+  { "id": 4475, "name": "Türk Beğeni Algoritma Uyumlu (Max 1k)", "price": 25.72, "min": 10, "max": 1000 },
+  { "id": 4465, "name": "Türk Beğeni Algoritma Uyumlu (Max 3k)", "price": 34.91, "min": 20, "max": 3000 },
+  { "id": 4011, "name": "Instagram Takipçi - 100 Gün Garantili", "price": 93.93, "min": 10, "max": 1000000 },
+  { "id": 4440, "name": "Instagram Türk Takipçi - Bütçe Dostu", "price": 178.2, "min": 50, "max": 3000 },
+  { "id": 3800, "name": "Instagram Türk Kadın Takipçi", "price": 278.4, "min": 50, "max": 5000 }
+]

@@ -1,0 +1,24 @@
+{
+  "name": "takipcipro-server",
+  "version": "2.0.0",
+  "description": "TakipçiPro — Otomatik Sipariş + MongoDB Servis Yönetimi",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "servisleri-cek": "node scripts/servisleri-cek.js"
+  },
+  "dependencies": {
+    "axios": "^1.14.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "fs": "^0.0.1-security",
+    "helmet": "^7.1.0",
+    "mongoose": "^8.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
