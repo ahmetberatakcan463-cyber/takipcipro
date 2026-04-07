@@ -45,6 +45,7 @@ app.use(cors({
   origin(origin, cb) {
     const izinli = [
       process.env.FRONTEND_URL,
+      'https://takipcipro.netlify.app',
       'http://localhost:5500',
       'http://127.0.0.1:5500',
       'http://localhost:3000',
