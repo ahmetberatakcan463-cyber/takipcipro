@@ -184,12 +184,17 @@
       <div class="admin-topbar">
         <h1>Siparişler</h1>
         <div class="topbar-actions">
-          <button class="btn-outline" style="font-size:12px;padding:7px 14px;" onclick="exportCSV()">
-            <i class="fas fa-download"></i> CSV
+          <button class="btn-outline" style="font-size:12px;padding:7px 14px;" onclick="renderOrders()">
+            <i class="fas fa-rotate"></i> Yenile
           </button>
-          <button class="act-btn del" style="padding:8px 16px;font-size:13px;" onclick="clearAllOrders()">
-            <i class="fas fa-trash"></i> Tümünü Temizle
-          </button>
+        </div>
+      </div>
+      <!-- Bakiye Uyarı Bandı -->
+      <div id="bakiyeBand" style="display:none;padding:14px 18px;border-radius:12px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-wallet" style="font-size:22px;"></i>
+        <div>
+          <div id="bakiyeText" style="font-weight:700;font-size:15px;"></div>
+          <div style="font-size:12px;opacity:.8;">SosyalBizde SMM Paneli bakiyesi</div>
         </div>
       </div>
       <div class="adm-card">
@@ -1230,15 +1235,32 @@ async function renderOrders(){
     return;
   }
 
+  // Bakiyeyi çek
+  bridgeGet('/api/admin/bakiye').then(b => {
+    const band = document.getElementById('bakiyeBand');
+    const text = document.getElementById('bakiyeText');
+    if (!band || !text) return;
+    band.style.display = 'flex';
+    if (b.success) {
+      const dusuk = b.bakiye < 5;
+      band.style.background = dusuk ? 'rgba(239,68,68,.12)' : 'rgba(34,197,94,.1)';
+      band.style.border = dusuk ? '1px solid rgba(239,68,68,.3)' : '1px solid rgba(34,197,94,.25)';
+      band.style.color = dusuk ? '#ef4444' : '#22c55e';
+      text.textContent = dusuk
+        ? `⚠️ BAKİYE DÜŞÜK: $${b.bakiye.toFixed(2)} — Lütfen yükle!`
+        : `✓ Bakiye: $${b.bakiye.toFixed(2)} ${b.para_birimi}`;
+    }
+  }).catch(()=>{});
+
   try {
-    let url = `/api/admin/siparisler?limit=200`;
+    let url = `/api/admin/siparisler?limit=500`;
     if (filter) url += `&status=${filter}`;
     if (search) url += `&ara=${encodeURIComponent(search)}`;
     const res = await bridgeGet(url);
     if (!res.success) throw new Error(res.error);
     const orders = res.siparisler || [];
     countEl.textContent = `Siparişler (${res.toplam})`;
-    tableEl.innerHTML = orders.length ? orderTable(orders) : '<p style="color:var(--muted);text-align:center;padding:30px;">Sipariş bulunamadı.</p>';
+    tableEl.innerHTML = orders.length ? orderTable(orders) : '<p style="color:var(--muted);text-align:center;padding:30px;">Henüz sipariş yok.</p>';
   } catch(e) {
     tableEl.innerHTML = `<p style="color:#ef4444;text-align:center;padding:30px;">Hata: ${e.message}</p>`;
   }
@@ -1469,13 +1491,16 @@ function resetPackages(){
 /* ─────────────────────────────────────────────────────
    SERVİS YÖNETİMİ (MongoDB + server.js)
 ───────────────────────────────────────────────────── */
+const _DEFAULT_BRIDGE = 'https://takipcipro-production-6b77.up.railway.app';
+const _DEFAULT_KEY    = 'TakipciPro2024!';
+
 const BRIDGE = () => {
   return localStorage.getItem('tp_bridge') ||
          localStorage.getItem('tp_bridge_url') ||
-         localStorage.getItem('tp_api_base') || null;
+         localStorage.getItem('tp_api_base') || _DEFAULT_BRIDGE;
 };
 const adminHeaders = (extra) => ({
-  'x-api-key':  localStorage.getItem('tp_bridge_key') || '',
+  'x-api-key':  localStorage.getItem('tp_bridge_key') || _DEFAULT_KEY,
   'x-admin-pw': localStorage.getItem('tp_admin_hash') || '',
   ...extra
 });

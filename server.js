@@ -17,13 +17,8 @@ const rateLimit  = require('express-rate-limit');
 const mongoose   = require('mongoose');
 const fs         = require('fs');
 const path       = require('path');
-const crypto     = require('crypto');
 const Service    = require('./models/Service');
 const Order      = require('./models/Order');
-
-// MongoDB'de admin hash saklamak için basit şema
-const ConfigSchema = new mongoose.Schema({ key: String, value: String });
-const Config = mongoose.models.Config || mongoose.model('Config', ConfigSchema);
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -63,13 +58,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type','x-api-key','x-admin-pw'],
 }));
 
-// Genel rate limit — saatte 200 istek (admin hariç)
-app.use('/api/', (req, res, next) => {
-  if (req.path.startsWith('/admin/')) return next(); // admin muaf
-  rateLimit({ windowMs: 60*60*1000, max: 200,
-    message: { success:false, error:'Çok fazla istek. 1 saat bekleyin.' },
-  })(req, res, next);
-});
+// Genel rate limit — saatte 60 istek
+app.use('/api/', rateLimit({
+  windowMs: 60*60*1000, max: 60,
+  message: { success:false, error:'Çok fazla istek. 1 saat bekleyin.' },
+}));
 
 // Sipariş endpointi — daha katı limit (saatte 10)
 const siparisSiniri = rateLimit({
@@ -81,31 +74,13 @@ const siparisSiniri = rateLimit({
    YARDIMCILAR
 ───────────────────────────────────────────────────── */
 
-// Varsayılan hash (env'den)
-const DEFAULT_ADMIN_HASH = process.env.ADMIN_PASSWORD
-  ? crypto.createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex')
-  : (process.env.ADMIN_PW_HASH || '');
-
-// Güncel hash'i DB'den çek (önce DB, yoksa env)
-async function getAdminHash() {
-  const row = await Config.findOne({ key: 'admin_pw_hash' }).lean().catch(() => null);
-  return row?.value || DEFAULT_ADMIN_HASH;
-}
-
-// Admin doğrulama — x-api-key (INTERNAL_API_KEY) VEYA x-admin-pw (şifre hash) kabul eder
-async function adminGuard(req, res, next) {
-  const apiKey   = req.headers['x-api-key']  || '';
-  const adminPw  = req.headers['x-admin-pw'] || '';
-  const validKey = process.env.INTERNAL_API_KEY || '';
-
-  if (validKey && apiKey === validKey) return next();
-
-  const adminHash = await getAdminHash();
-  if (adminHash && adminPw === adminHash) return next();
-  if (!validKey && !adminHash) return next();
-
-  console.warn(`[YETKİSİZ] IP: ${req.ip}`);
-  return res.status(401).json({ success:false, error:'Yetkisiz.' });
+// API Key kontrolü (tüm /api/admin/* rotalarında)
+function adminGuard(req, res, next) {
+  if (req.headers['x-api-key'] !== process.env.INTERNAL_API_KEY) {
+    console.warn(`[YETKİSİZ] IP: ${req.ip}`);
+    return res.status(401).json({ success:false, error:'Yetkisiz.' });
+  }
+  next();
 }
 
 // Input temizle
@@ -161,15 +136,15 @@ app.get('/api/vitrin', async (req, res) => {
 
     const paketler = servisler.map(s => ({
       id:        s.servisId,
-      name:      s.vitrinAd   || '',
+      name:      s.vitrinAd   || s.vitrinAd,
       emoji:     s.emoji      || '⭐',
+      amount:    s.min,        // Minimum miktar paket boyutu olarak
       price:     s.musteriTL,
       oldPrice:  s.eskiFiyatTL > 0 ? s.eskiFiyatTL : null,
       delivery:  s.teslimat   || '15-30 dakika',
       popular:   s.populer    || false,
       aciklama:  s.aciklama   || '',
-      min:       s.min,
-      max:       s.max,
+      features:  ['Gerçek hesaplar', 'Anlık teslimat', '30 gün garanti'],
     }));
 
     res.json({ success:true, data: paketler });
@@ -198,26 +173,18 @@ app.post('/api/siparis-ver', siparisSiniri, async (req, res) => {
     return res.status(400).json({ success:false, error:'Geçersiz username.' });
   }
 
-  // Servis bilgisini al (bakiye hesabı için, yoksa devam et)
-  const servis = await Service.findOne({ servisId: serviceId }).catch(() => null);
+  // Servis varlık kontrolü
+  const servis = await Service.findOne({ servisId: serviceId, aktif:true });
+  if (!servis)
+    return res.status(400).json({ success:false, error:'Bu servis artık aktif değil.' });
 
   console.log(`[SİPARİŞ] @${username} → ${quantity} adet (Servis: ${serviceId})`);
-
-  // Manuel servisler (negatif ID) SMM'e gönderilmez, beklemede kaydedilir
-  if (serviceId < 0) {
-    await Order.create({ serviceId, username, quantity, status: 'manuel', smmResponse: {} });
-    const logs = readLog();
-    logs.unshift({ tarih:new Date().toISOString(), igKullanici:username,
-      miktar:quantity, servisId:serviceId, durum:'manuel' });
-    writeLog(logs);
-    return res.json({ success:true, message:'Siparişiniz alındı! En kısa sürede teslim edilecek.' });
-  }
 
   try {
     // Sipariş öncesi bakiye kontrolü
     const balanceData = await smmCall({ action: 'balance' });
     const smmBalance = Number.parseFloat(balanceData.balance || '0');
-    const serviceRate = Number.parseFloat(servis?.fiyat || '0'); // 1000 adet fiyat
+    const serviceRate = Number.parseFloat(servis.fiyat || '0'); // 1000 adet fiyat
     const estimatedCost = (serviceRate / 1000) * quantity;
 
     if (Number.isFinite(smmBalance) && Number.isFinite(estimatedCost) && smmBalance < estimatedCost) {
@@ -350,35 +317,11 @@ app.get('/api/bakiye', adminGuard, async (req, res) => {
 ───────────────────────────────────────────────────── */
 
 /**
- * GET /api/admin/siparisler
- * MongoDB'deki tüm siparişleri döner (en yeni önce)
- */
-app.get('/api/admin/siparisler', adminGuard, async (req, res) => {
-  const limit  = Math.min(Number(req.query.limit)  || 100, 500);
-  const sayfa  = Math.max(Number(req.query.sayfa)  || 1, 1);
-  const status = req.query.status || '';
-  const ara    = req.query.ara    || '';
-
-  const filtre = {};
-  if (status) filtre.status = status;
-  if (ara)    filtre.username = { $regex: ara, $options: 'i' };
-
-  const toplam    = await Order.countDocuments(filtre);
-  const siparisler = await Order.find(filtre)
-    .sort({ createdAt: -1 })
-    .skip((sayfa - 1) * limit)
-    .limit(limit)
-    .lean();
-
-  res.json({ success: true, toplam, sayfa, siparisler });
-});
-
-/**
  * GET /api/admin/servisler
  * Tüm servisleri sayfalı döner. Filter: kategori, vitrin, ara
  */
 app.get('/api/admin/servisler', adminGuard, async (req, res) => {
-  const { sayfa=1, limit=5000, kategori, vitrin, ara } = req.query;
+  const { sayfa=1, limit=50, kategori, vitrin, ara } = req.query;
   const filtre = {};
   if (kategori) filtre.kategori = new RegExp(kategori, 'i');
   if (vitrin !== undefined) filtre.vitrin = vitrin === 'true';
@@ -426,84 +369,6 @@ app.put('/api/admin/servis/:servisId', adminGuard, async (req, res) => {
   );
   if (!guncel) return res.status(404).json({ success:false, error:'Servis bulunamadı.' });
   res.json({ success:true, data:guncel });
-});
-
-/**
- * POST /api/admin/servis/ekle
- * Manuel olarak yeni bir servis ekle (SMM panelinden bağımsız)
- */
-app.post('/api/admin/servis/ekle', adminGuard, async (req, res) => {
-  const { vitrinAd, aciklama, emoji, teslimat, kategori, min, max,
-          musteriTL, eskiFiyatTL, vitrin, populer, sira, servisId: bodyServisId } = req.body;
-
-  if (!vitrinAd) return res.status(400).json({ success:false, error:'vitrinAd zorunlu.' });
-
-  // Gerçek SMM ID'si verilmişse onu kullan, yoksa negatif ID üret
-  let yeniId;
-  if (bodyServisId && Number(bodyServisId) > 0) {
-    yeniId = Number(bodyServisId);
-    const mevcut = await Service.findOne({ servisId: yeniId });
-    if (mevcut) return res.status(409).json({ success:false, error:`Servis ID ${yeniId} zaten mevcut.` });
-  } else {
-    const enKucuk = await Service.findOne({ servisId:{ $lt:0 } }).sort({ servisId:1 });
-    yeniId = enKucuk ? enKucuk.servisId - 1 : -1;
-  }
-
-  const yeni = await Service.create({
-    servisId:    yeniId,
-    kategori:    kategori   || 'Manuel',
-    orijinalAd:  vitrinAd,
-    vitrinAd,
-    aciklama:    aciklama   || '',
-    emoji:       emoji      || '⭐',
-    teslimat:    teslimat   || '',
-    min:         Number(min)         || 1,
-    max:         Number(max)         || 99999,
-    musteriTL:   Number(musteriTL)   || 0,
-    eskiFiyatTL: Number(eskiFiyatTL) || 0,
-    vitrin:      vitrin  !== undefined ? Boolean(vitrin)  : true,
-    aktif:       true,
-    populer:     Boolean(populer),
-    sira:        Number(sira) || 999,
-    fiyat:       0,
-  });
-
-  res.json({ success:true, data:yeni });
-});
-
-/**
- * POST /api/admin/sifre-degistir
- * Admin şifresini MongoDB'ye kaydeder
- * Body: { yeniHash } — SHA-256 hash of new password
- */
-app.post('/api/admin/sifre-degistir', adminGuard, async (req, res) => {
-  const { yeniHash } = req.body;
-  if (!yeniHash || yeniHash.length !== 64)
-    return res.status(400).json({ success:false, error:'Geçersiz hash.' });
-  await Config.findOneAndUpdate(
-    { key: 'admin_pw_hash' },
-    { key: 'admin_pw_hash', value: yeniHash },
-    { upsert: true }
-  );
-  res.json({ success: true });
-});
-
-/**
- * GET /api/admin/servis-sorgula/:servisId
- * SosyalBizde'den tek bir servisin bilgisini çeker (ilan ekleme sihirbazı için)
- */
-app.get('/api/admin/servis-sorgula/:servisId', adminGuard, async (req, res) => {
-  const id = Number(req.params.servisId);
-  if (!id) return res.status(400).json({ success:false, error:'Geçersiz servis ID.' });
-
-  try {
-    const data = await smmCall({ action:'services' });
-    const servis = Array.isArray(data) ? data.find(s => Number(s.service) === id) : null;
-    if (!servis) return res.status(404).json({ success:false, error:`ID ${id} bulunamadı.` });
-    res.json({ success:true, data:{ id, name:servis.name, min:servis.min, max:servis.max, rate:servis.rate } });
-  } catch(e) {
-    res.status(500).json({ success:false, error:e.message });
-  }
 });
 
 /**
@@ -561,6 +426,47 @@ app.post('/api/admin/servisleri-guncelle', adminGuard, async (req, res) => {
     res.json({ success:true, toplam:data.length, eklenen, guncellenen });
   } catch(e) {
     res.status(500).json({ success:false, error:e.message });
+  }
+});
+
+/**
+ * GET /api/admin/bakiye
+ * Admin panel formatında bakiye döner.
+ */
+app.get('/api/admin/bakiye', adminGuard, async (req, res) => {
+  try {
+    const data = await smmCall({ action: 'balance' });
+    res.json({
+      success: true,
+      bakiye: parseFloat(data.balance || 0),
+      para_birimi: data.currency || 'USD',
+    });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/**
+ * GET /api/admin/siparisler
+ * MongoDB'deki tüm siparişleri döner. Filter: status, ara
+ */
+app.get('/api/admin/siparisler', adminGuard, async (req, res) => {
+  const { limit = 200, status, ara } = req.query;
+  const filtre = {};
+  if (status) filtre.status = status;
+  if (ara) filtre.$or = [
+    { username: new RegExp(clean(ara), 'i') },
+    { smmOrderId: new RegExp(clean(ara), 'i') },
+  ];
+  try {
+    const toplam = await Order.countDocuments(filtre);
+    const siparisler = await Order.find(filtre)
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .lean();
+    res.json({ success: true, toplam, siparisler });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
@@ -625,8 +531,9 @@ app.listen(PORT, () => {
   console.log('Public  : GET  /api/vitrin');
   console.log('Public  : POST /api/siparis-ver');
   console.log('Admin   : GET  /api/admin/servisler');
+  console.log('Admin   : GET  /api/admin/siparisler');
+  console.log('Admin   : GET  /api/admin/bakiye');
   console.log('Admin   : PUT  /api/admin/servis/:id');
-  console.log('Admin   : POST /api/admin/servis/ekle');
   console.log('Admin   : POST /api/admin/toplu-vitrin');
   console.log('Admin   : POST /api/admin/servisleri-guncelle');
   console.log('Admin   : GET  /api/admin/istatistik');
