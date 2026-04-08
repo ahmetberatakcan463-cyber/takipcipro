@@ -2110,9 +2110,22 @@ function saveSettings(section){
     sha256(cur).then(async curHash=>{
       const stored = await getPassHash();
       if(curHash !== stored){ toast('Mevcut şifre yanlış!',false); return; }
-      await setNewPassHash(n);
-      addLog('Admin şifresi güvenli şekilde değiştirildi.','gold');
-      toast('Şifre güncellendi! (SHA-256 hash kaydedildi)',true);
+      const yeniHash = await sha256(n);
+      // localStorage güncelle
+      localStorage.setItem('tp_admin_hash', yeniHash);
+      // Backend'e gönder
+      if (BRIDGE()) {
+        try {
+          const r = await bridgePost('/api/admin/sifre-degistir', { yeniHash });
+          if (!r.success) throw new Error(r.error);
+          toast('Şifre güncellendi ✓ (sunucuya kaydedildi)', true);
+        } catch(e) {
+          toast('Şifre local güncellendi ama sunucu hatası: ' + e.message, false);
+        }
+      } else {
+        toast('Şifre güncellendi ✓', true);
+      }
+      addLog('Admin şifresi değiştirildi.','gold');
       ['setCurPass','setNewPass','setNewPass2'].forEach(id=>document.getElementById(id).value='');
     });
     return;

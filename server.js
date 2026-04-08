@@ -21,6 +21,10 @@ const crypto     = require('crypto');
 const Service    = require('./models/Service');
 const Order      = require('./models/Order');
 
+// MongoDB'de admin hash saklamak için basit şema
+const ConfigSchema = new mongoose.Schema({ key: String, value: String });
+const Config = mongoose.models.Config || mongoose.model('Config', ConfigSchema);
+
 const app  = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/takipcipro';
@@ -77,20 +81,28 @@ const siparisSiniri = rateLimit({
    YARDIMCILAR
 ───────────────────────────────────────────────────── */
 
-// Admin şifre hash'i — ADMIN_PASSWORD env'den hesaplanır
-const ADMIN_PW_HASH = process.env.ADMIN_PASSWORD
+// Varsayılan hash (env'den)
+const DEFAULT_ADMIN_HASH = process.env.ADMIN_PASSWORD
   ? crypto.createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex')
   : (process.env.ADMIN_PW_HASH || '');
 
+// Güncel hash'i DB'den çek (önce DB, yoksa env)
+async function getAdminHash() {
+  const row = await Config.findOne({ key: 'admin_pw_hash' }).lean().catch(() => null);
+  return row?.value || DEFAULT_ADMIN_HASH;
+}
+
 // Admin doğrulama — x-api-key (INTERNAL_API_KEY) VEYA x-admin-pw (şifre hash) kabul eder
-function adminGuard(req, res, next) {
-  const apiKey  = req.headers['x-api-key']  || '';
-  const adminPw = req.headers['x-admin-pw'] || '';
+async function adminGuard(req, res, next) {
+  const apiKey   = req.headers['x-api-key']  || '';
+  const adminPw  = req.headers['x-admin-pw'] || '';
   const validKey = process.env.INTERNAL_API_KEY || '';
 
   if (validKey && apiKey === validKey) return next();
-  if (ADMIN_PW_HASH && adminPw === ADMIN_PW_HASH) return next();
-  if (!validKey && !ADMIN_PW_HASH) return next();
+
+  const adminHash = await getAdminHash();
+  if (adminHash && adminPw === adminHash) return next();
+  if (!validKey && !adminHash) return next();
 
   console.warn(`[YETKİSİZ] IP: ${req.ip}`);
   return res.status(401).json({ success:false, error:'Yetkisiz.' });
@@ -457,6 +469,23 @@ app.post('/api/admin/servis/ekle', adminGuard, async (req, res) => {
   });
 
   res.json({ success:true, data:yeni });
+});
+
+/**
+ * POST /api/admin/sifre-degistir
+ * Admin şifresini MongoDB'ye kaydeder
+ * Body: { yeniHash } — SHA-256 hash of new password
+ */
+app.post('/api/admin/sifre-degistir', adminGuard, async (req, res) => {
+  const { yeniHash } = req.body;
+  if (!yeniHash || yeniHash.length !== 64)
+    return res.status(400).json({ success:false, error:'Geçersiz hash.' });
+  await Config.findOneAndUpdate(
+    { key: 'admin_pw_hash' },
+    { key: 'admin_pw_hash', value: yeniHash },
+    { upsert: true }
+  );
+  res.json({ success: true });
 });
 
 /**
