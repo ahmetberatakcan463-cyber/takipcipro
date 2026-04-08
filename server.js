@@ -509,6 +509,144 @@ app.get('/api/admin/loglar', adminGuard, (req, res) => {
 });
 
 /* ─────────────────────────────────────────────────────
+   SHOPİER ENTEGRASYONu
+───────────────────────────────────────────────────── */
+
+/**
+ * POST /api/shopier-baslat
+ * Sipariş oluştur, Shopier ödeme linki döndür.
+ * Body: { serviceId, username, quantity, buyerName, buyerEmail, buyerPhone }
+ */
+app.post('/api/shopier-baslat', siparisSiniri, async (req, res) => {
+  const serviceId  = Number(req.body.serviceId);
+  const quantity   = Number(req.body.quantity);
+  const username   = clean(String(req.body.username || ''), 300);
+  const buyerName  = clean(String(req.body.buyerName  || 'Müşteri'), 100);
+  const buyerEmail = clean(String(req.body.buyerEmail || ''), 200);
+  const buyerPhone = clean(String(req.body.buyerPhone || '05000000000'), 20);
+
+  if (!serviceId || !quantity || !username) {
+    return res.status(400).json({ success: false, error: 'Eksik bilgi.' });
+  }
+
+  const servis = await Service.findOne({ servisId: serviceId, aktif: true });
+  if (!servis) return res.status(400).json({ success: false, error: 'Servis aktif değil.' });
+
+  const pricePerK   = servis.musteriTL || 0;
+  const totalPrice  = parseFloat((pricePerK * quantity / 1000).toFixed(2));
+  const orderId     = 'TP-' + Date.now();
+
+  // Bekleyen siparişi MongoDB'ye kaydet
+  const order = await Order.create({
+    serviceId,
+    username,
+    quantity,
+    status: 'pending',
+    error: 'Ödeme bekleniyor',
+    smmResponse: { shopierOrderId: orderId, buyerEmail, totalPrice },
+  });
+
+  try {
+    const shopierRes = await axios.post(
+      'https://developer.shopier.com/api/v1/orders',
+      {
+        currency:     'TRY',
+        total_amount: totalPrice,
+        external_id:  orderId,
+        note:         `${username} - ${quantity} adet - Servis ${serviceId}`,
+        buyer: {
+          name:  buyerName,
+          email: buyerEmail,
+          phone: buyerPhone,
+        },
+        items: [{
+          name:       servis.vitrinAd || `Servis ${serviceId}`,
+          quantity:   1,
+          unit_price: totalPrice,
+        }],
+        redirect_url: `https://takipcipro.netlify.app?odeme=basarili&oid=${orderId}`,
+        cancel_url:   `https://takipcipro.netlify.app?odeme=iptal&oid=${orderId}`,
+        webhook_url:  process.env.SHOPIER_CALLBACK_URL,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.SHOPIER_TOKEN}`,
+          'Content-Type':  'application/json',
+        },
+        timeout: 15000,
+      }
+    );
+
+    const checkoutUrl = shopierRes.data?.checkout_url
+      || shopierRes.data?.payment_url
+      || shopierRes.data?.url
+      || shopierRes.data?.data?.checkout_url;
+
+    if (!checkoutUrl) {
+      console.error('[SHOPIER] Checkout URL bulunamadı:', JSON.stringify(shopierRes.data));
+      return res.status(502).json({ success: false, error: 'Shopier ödeme linki alınamadı.', raw: shopierRes.data });
+    }
+
+    return res.json({ success: true, checkoutUrl, orderId, mongoId: order._id });
+  } catch (e) {
+    const errData = e.response?.data || e.message;
+    console.error('[SHOPIER HATA]', JSON.stringify(errData));
+    return res.status(502).json({ success: false, error: 'Shopier hatası.', raw: errData });
+  }
+});
+
+/**
+ * POST /api/shopier-callback
+ * Shopier ödeme tamamlandığında bu endpoint'e POST atar.
+ */
+app.post('/api/shopier-callback', express.json(), async (req, res) => {
+  try {
+    const { external_id, status, payment_id } = req.body;
+    console.log('[SHOPIER CALLBACK]', JSON.stringify(req.body));
+
+    if (status !== 'paid' && status !== 'success' && status !== 'completed') {
+      return res.status(200).json({ received: true });
+    }
+
+    const order = await Order.findOne({ 'smmResponse.shopierOrderId': external_id, status: 'pending' });
+    if (!order) {
+      console.warn('[SHOPIER] Sipariş bulunamadı:', external_id);
+      return res.status(200).json({ received: true });
+    }
+
+    // SMM panele ilet
+    const apiData = await smmCall({
+      action:   'add',
+      service:  order.serviceId,
+      link:     order.username,
+      quantity: order.quantity,
+    });
+
+    if (apiData.error || !apiData.order) {
+      await Order.findByIdAndUpdate(order._id, {
+        status: 'error',
+        error:  `Ödeme alındı ama SMM hata: ${apiData.error || 'order ID yok'}`,
+        'smmResponse.shopierPaymentId': payment_id,
+      });
+      return res.status(200).json({ received: true });
+    }
+
+    await Order.findByIdAndUpdate(order._id, {
+      status:     'success',
+      smmOrderId: String(apiData.order),
+      error:      null,
+      'smmResponse.shopierPaymentId': payment_id,
+    });
+
+    console.log(`[SHOPIER] ✓ Ödeme + SMM tamam: @${order.username} → SMM #${apiData.order}`);
+    return res.status(200).json({ received: true });
+  } catch (e) {
+    console.error('[SHOPIER CALLBACK HATA]', e.message);
+    return res.status(200).json({ received: true });
+  }
+});
+
+/* ─────────────────────────────────────────────────────
    SAĞLIK & 404
 ───────────────────────────────────────────────────── */
 app.get('/api/saglik', (req, res) => {

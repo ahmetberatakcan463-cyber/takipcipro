@@ -660,43 +660,30 @@
         </div>
       </div>
 
-      <!-- Payment -->
+      <!-- Alıcı Bilgileri -->
       <div style="margin-bottom:14px;">
-        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">Ödeme Yöntemi</div>
-        <div class="card-preview">
-          <div class="card-chip"></div>
-          <div class="card-num-disp" id="cardNumDisp">•••• •••• •••• ••••</div>
-          <div class="card-info-row">
-            <div><span class="lbl">Kart Sahibi</span><span class="val" id="cardNameDisp">AD SOYAD</span></div>
-            <div><span class="lbl">Son Kullanma</span><span class="val" id="cardExpDisp">MM/YY</span></div>
-          </div>
-        </div>
-        <div class="ssl-note">
-          <i class="fa-solid fa-lock"></i>
-          <span>256-bit SSL şifreleme ile korunmaktadır</span>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">Alıcı Bilgileri</div>
+        <div class="form-group">
+          <label>Ad Soyad</label>
+          <input type="text" id="buyerName" placeholder="Ad Soyad">
         </div>
         <div class="form-group">
-          <label>Kart Numarası</label>
-          <input type="text" id="cardNum" placeholder="0000 0000 0000 0000" maxlength="19" oninput="formatCard(this)" onkeyup="updateCardPreview()">
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Ad Soyad</label>
-            <input type="text" id="cardName" placeholder="Ad Soyad" oninput="updateCardPreview()">
-          </div>
-          <div class="form-group">
-            <label>Son Kullanma</label>
-            <input type="text" id="cardExp" placeholder="MM/YY" maxlength="5" oninput="formatExp(this);updateCardPreview()">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>CVV</label>
-          <input type="text" id="cardCvv" placeholder="•••" maxlength="3">
+          <label>Telefon</label>
+          <input type="tel" id="buyerPhone" placeholder="05XX XXX XX XX">
         </div>
       </div>
 
+      <!-- Shopier Ödeme Butonu -->
+      <div style="background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
+          <i class="fa-solid fa-lock" style="color:var(--gold2);"></i>
+          Güvenli ödeme — Shopier altyapısı
+        </div>
+        <div style="font-size:11px;color:var(--muted);">Kredi kartı, banka kartı, havale/EFT kabul edilir</div>
+      </div>
+
       <button class="submit-btn" id="submitBtn" onclick="submitOrder()">
-        <i class="fa-solid fa-lock"></i> Güvenli Ödeme Yap
+        <i class="fa-solid fa-credit-card"></i> Shopier ile Güvenli Öde
       </button>
     </div>
 
@@ -994,75 +981,63 @@
 
   // ---- Submit ----
   async function submitOrder() {
-    const link = document.getElementById('modalLink').value.trim();
-    const email = document.getElementById('modalEmail').value.trim();
-    const cardNum = document.getElementById('cardNum').value.replace(/\s/g,'');
-    const cardName = document.getElementById('cardName').value.trim();
-    const cardExp = document.getElementById('cardExp').value.trim();
-    const cardCvv = document.getElementById('cardCvv').value.trim();
+    const link       = document.getElementById('modalLink').value.trim();
+    const email      = document.getElementById('modalEmail').value.trim();
+    const buyerName  = document.getElementById('buyerName').value.trim();
+    const buyerPhone = document.getElementById('buyerPhone').value.trim();
 
     if (!selectedService) { alert('Lütfen "Ürün Seçiniz" alanından ürün seçiniz.'); return; }
-    if (!link) { alert('Lütfen Instagram kullanıcı adı veya link giriniz.'); return; }
+    if (!link)  { alert('Lütfen Instagram kullanıcı adı giriniz.'); return; }
     if (!email || !email.includes('@')) { alert('Lütfen geçerli bir e-posta adresi giriniz.'); return; }
-    if (cardNum.length !== 16) { alert('Lütfen geçerli bir kart numarası giriniz.'); return; }
-    if (!cardName) { alert('Lütfen kart üzerindeki adı giriniz.'); return; }
-    if (cardExp.length !== 5) { alert('Lütfen geçerli bir son kullanma tarihi giriniz.'); return; }
-    if (cardCvv.length !== 3) { alert('Lütfen geçerli bir CVV giriniz.'); return; }
+    if (!buyerName)  { alert('Lütfen ad soyad giriniz.'); return; }
+    if (!buyerPhone) { alert('Lütfen telefon numarası giriniz.'); return; }
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> İşleniyor...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Ödeme hazırlanıyor...';
 
     try {
       const qty = Number(document.getElementById('quantityInput')?.value || currentPkg.amount);
-      const apiRes = await fetch(`${ORDER_API_BASE}/api/siparis-ver`, {
+
+      const res = await fetch(`${ORDER_API_BASE}/api/shopier-baslat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceId: Number(currentPkg.id),
-          username: link,
-          quantity: qty,
+          serviceId:   Number(currentPkg.id),
+          username:    link,
+          quantity:    qty,
+          buyerName,
+          buyerEmail:  email,
+          buyerPhone,
         }),
       });
-      const apiData = await apiRes.json();
+      const data = await res.json();
 
-      // Generate order ID
-      const orderId = 'TP-' + Date.now().toString().slice(-8);
-      const pricePerK = Number(currentPkg.pricePerThousand || currentPkg.price || 0);
-      const basePrice = qty > 0 ? pricePerK * qty / 1000 : pricePerK;
-      const finalPrice = Math.max(0, basePrice - discountApplied);
-
-      if (!apiRes.ok && apiData.status !== 'beklemede') {
-        throw new Error(apiData.error || 'Sipariş gönderilemedi.');
+      if (!data.success || !data.checkoutUrl) {
+        throw new Error(data.error || 'Ödeme linki alınamadı.');
       }
 
+      // Sipariş ID'yi localStorage'a kaydet
       const orders = JSON.parse(localStorage.getItem('tp_orders') || '[]');
       orders.push({
-        id: orderId,
-        pkg: currentPkg.name,
-        amount: qty,
+        id:       data.orderId,
+        pkg:      currentPkg.name,
+        amount:   qty,
         servisId: currentPkg.id,
-        servicePrice: Number(currentPkg.pricePerThousand || currentPkg.price),
-        link: link,
-        email: email,
-        price: finalPrice,
-        status: apiData.status === 'beklemede' ? 'pending' : 'processing',
-        smmOrderId: apiData.smmOrderId || null,
-        date: new Date().toISOString()
+        link,
+        email,
+        status:   'pending',
+        date:     new Date().toISOString(),
       });
       localStorage.setItem('tp_orders', JSON.stringify(orders));
 
-      document.getElementById('successOrderId').textContent =
-        apiData.status === 'beklemede'
-          ? `${orderId} (Beklemede - Bakiye Yüklenince İşlenecek)`
-          : orderId;
-      document.getElementById('orderForm').style.display = 'none';
-      document.getElementById('successScreen').style.display = 'block';
+      // Shopier ödeme sayfasına yönlendir
+      window.location.href = data.checkoutUrl;
+
     } catch (err) {
-      alert(err.message || 'Sipariş sırasında bir hata oluştu.');
-    } finally {
+      alert(err.message || 'Bir hata oluştu, tekrar deneyin.');
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-lock"></i> Güvenli Ödeme Yap';
+      btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> Shopier ile Güvenli Öde';
     }
   }
 
