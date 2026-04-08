@@ -366,7 +366,7 @@ app.get('/api/admin/siparisler', adminGuard, async (req, res) => {
  * Tüm servisleri sayfalı döner. Filter: kategori, vitrin, ara
  */
 app.get('/api/admin/servisler', adminGuard, async (req, res) => {
-  const { sayfa=1, limit=50, kategori, vitrin, ara } = req.query;
+  const { sayfa=1, limit=5000, kategori, vitrin, ara } = req.query;
   const filtre = {};
   if (kategori) filtre.kategori = new RegExp(kategori, 'i');
   if (vitrin !== undefined) filtre.vitrin = vitrin === 'true';
