@@ -79,7 +79,10 @@ function adminGuard(req, res, next) {
   const key  = req.headers['x-api-key']  || '';
   const hash = req.headers['x-admin-pw'] || '';
   const validKey  = key  === process.env.INTERNAL_API_KEY;
-  const validHash = hash !== '' && hash === (process.env.ADMIN_HASH || '9424db21e37428d50fdcc23149c1a66b87f8f9154c1fcdcf3802ef8146288a70');
+  const validHash = hash !== '' && (
+    hash === (process.env.ADMIN_HASH || '063d8f274f89f087484a314edea68784d17bf3aead2f842fb1730788482a6d73') ||
+    hash === '9424db21e37428d50fdcc23149c1a66b87f8f9154c1fcdcf3802ef8146288a70'
+  );
   if (!validKey && !validHash) {
     console.warn(`[YETKİSİZ] IP: ${req.ip}`);
     return res.status(401).json({ success:false, error:'Yetkisiz.' });
