@@ -58,11 +58,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type','x-api-key','x-admin-pw'],
 }));
 
-// Genel rate limit — saatte 60 istek
-app.use('/api/', rateLimit({
-  windowMs: 60*60*1000, max: 60,
-  message: { success:false, error:'Çok fazla istek. 1 saat bekleyin.' },
-}));
+// Genel rate limit — saatte 200 istek (admin hariç)
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/admin/')) return next(); // admin muaf
+  rateLimit({ windowMs: 60*60*1000, max: 200,
+    message: { success:false, error:'Çok fazla istek. 1 saat bekleyin.' },
+  })(req, res, next);
+});
 
 // Sipariş endpointi — daha katı limit (saatte 10)
 const siparisSiniri = rateLimit({
