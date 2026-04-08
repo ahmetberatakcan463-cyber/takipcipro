@@ -334,6 +334,30 @@ app.get('/api/bakiye', adminGuard, async (req, res) => {
 ───────────────────────────────────────────────────── */
 
 /**
+ * GET /api/admin/siparisler
+ * MongoDB'deki tüm siparişleri döner (en yeni önce)
+ */
+app.get('/api/admin/siparisler', adminGuard, async (req, res) => {
+  const limit  = Math.min(Number(req.query.limit)  || 100, 500);
+  const sayfa  = Math.max(Number(req.query.sayfa)  || 1, 1);
+  const status = req.query.status || '';
+  const ara    = req.query.ara    || '';
+
+  const filtre = {};
+  if (status) filtre.status = status;
+  if (ara)    filtre.username = { $regex: ara, $options: 'i' };
+
+  const toplam    = await Order.countDocuments(filtre);
+  const siparisler = await Order.find(filtre)
+    .sort({ createdAt: -1 })
+    .skip((sayfa - 1) * limit)
+    .limit(limit)
+    .lean();
+
+  res.json({ success: true, toplam, sayfa, siparisler });
+});
+
+/**
  * GET /api/admin/servisler
  * Tüm servisleri sayfalı döner. Filter: kategori, vitrin, ara
  */

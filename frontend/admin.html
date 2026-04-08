@@ -707,7 +707,7 @@ const MAX_ATTEMPTS   = 5;          // Maksimum yanlış giriş
 const LOCKOUT_MINS   = 30;         // Kilit süresi (dakika)
 const SESSION_MINS   = 20;         // Oturum zaman aşımı (dakika)
 const SESSION_WARN   = 5;          // Uyarı öncesi kalan süre (dakika)
-const DEFAULT_PASS   = 'Hatber99'; // Varsayılan şifre (sadece ilk hash için)
+const DEFAULT_PASS   = 'hatber88'; // Varsayılan şifre (sadece ilk hash için)
 
 /* ─── SHA-256 (Web Crypto API) ─── */
 async function sha256(str) {
@@ -1218,47 +1218,47 @@ function renderRecentOrders(orders){
 /* ─────────────────────────────────────────────────────
    ORDERS
 ───────────────────────────────────────────────────── */
-function renderOrders(){
-  const filter  = (document.getElementById('filterStatus')||{}).value || '';
-  const search  = ((document.getElementById('orderSearch')||{}).value||'').toLowerCase().trim();
-  let orders = getOrders();
-  if(filter) orders = orders.filter(o=>o.status===filter);
-  if(search) orders = orders.filter(o=>
-    o.username.toLowerCase().includes(search) || o.id.toLowerCase().includes(search)
-  );
-  document.getElementById('ordersCount').textContent = `Siparişler (${orders.length})`;
-  document.getElementById('ordersTable').innerHTML = orders.length
-    ? orderTable(orders)
-    : '<p style="color:var(--muted);text-align:center;padding:30px;">Sipariş bulunamadı.</p>';
+async function renderOrders(){
+  const filter = (document.getElementById('filterStatus')||{}).value || '';
+  const search = ((document.getElementById('orderSearch')||{}).value||'').trim();
+  const tableEl = document.getElementById('ordersTable');
+  const countEl = document.getElementById('ordersCount');
+  tableEl.innerHTML = '<p style="text-align:center;padding:30px;color:var(--muted);"><i class="fas fa-spinner fa-spin"></i> Yükleniyor...</p>';
+
+  if (!BRIDGE()) {
+    tableEl.innerHTML = '<p style="text-align:center;padding:30px;color:var(--muted);">Köprü bağlantısı ayarlı değil.</p>';
+    return;
+  }
+
+  try {
+    let url = `/api/admin/siparisler?limit=200`;
+    if (filter) url += `&status=${filter}`;
+    if (search) url += `&ara=${encodeURIComponent(search)}`;
+    const res = await bridgeGet(url);
+    if (!res.success) throw new Error(res.error);
+    const orders = res.siparisler || [];
+    countEl.textContent = `Siparişler (${res.toplam})`;
+    tableEl.innerHTML = orders.length ? orderTable(orders) : '<p style="color:var(--muted);text-align:center;padding:30px;">Sipariş bulunamadı.</p>';
+  } catch(e) {
+    tableEl.innerHTML = `<p style="color:#ef4444;text-align:center;padding:30px;">Hata: ${e.message}</p>`;
+  }
 }
 
 function orderTable(orders){
+  const statusIcon = s => ({success:'✅',pending:'⏳',error:'❌',manuel:'🔧'}[s]||'❓');
+  const statusText = s => ({success:'Tamamlandı',pending:'Bekliyor',error:'Hata',manuel:'Manuel'}[s]||s);
   return `<table>
     <thead><tr>
-      <th>Sipariş No</th><th>Kullanıcı Adı</th><th>Paket</th><th>Tutar</th><th>Kart</th><th>Tarih</th><th>Durum</th><th>İşlem</th>
+      <th>Kullanıcı Adı</th><th>Servis ID</th><th>Adet</th><th>SMM Sipariş</th><th>Tarih</th><th>Durum</th>
     </tr></thead>
     <tbody>
     ${orders.map(o=>`<tr>
-      <td><code style="color:var(--gold2);font-size:11px;">${o.id}</code></td>
       <td><i class="fab fa-instagram" style="color:#e1306c;margin-right:5px;"></i>@${o.username}</td>
-      <td><strong>${o.amount?o.amount.toLocaleString('tr-TR'):0}</strong> (${o.packageName||''})</td>
-      <td>
-        <span style="color:var(--gold2);font-weight:700;">${(o.finalPrice||o.price||0).toLocaleString('tr-TR')}₺</span>
-      </td>
-      <td style="font-family:monospace;">••••&nbsp;${o.cardLast4||'????'}</td>
-      <td style="color:var(--muted);font-size:11px;">${fmtDate(o.date)}</td>
-      <td>
-        <select class="st-sel" onchange="changeStatus('${o.id}',this.value)">
-          <option value="bekliyor"   ${o.status==='bekliyor'   ?'selected':''}>⏳ Bekliyor</option>
-          <option value="isleniyor"  ${o.status==='isleniyor'  ?'selected':''}>🔄 İşleniyor</option>
-          <option value="tamamlandi" ${o.status==='tamamlandi' ?'selected':''}>✅ Tamamlandı</option>
-          <option value="iptal"      ${o.status==='iptal'      ?'selected':''}>❌ İptal</option>
-        </select>
-      </td>
-      <td>
-        <button class="act-btn view" onclick="showOrderDetail('${o.id}')"><i class="fas fa-eye"></i></button>
-        <button class="act-btn del"  onclick="deleteOrder('${o.id}')"><i class="fas fa-trash"></i></button>
-      </td>
+      <td><code style="color:var(--gold2);font-size:11px;">${o.serviceId}</code></td>
+      <td><strong>${(o.quantity||0).toLocaleString('tr-TR')}</strong></td>
+      <td style="font-family:monospace;font-size:11px;">${o.smmOrderId||'—'}</td>
+      <td style="color:var(--muted);font-size:11px;">${new Date(o.createdAt).toLocaleString('tr-TR')}</td>
+      <td>${statusIcon(o.status)} ${statusText(o.status)}</td>
     </tr>`).join('')}
     </tbody>
   </table>`;
@@ -1529,7 +1529,7 @@ async function renderServices() {
   try {
     const [istatRes, svcRes] = await Promise.all([
       bridgeGet('/api/admin/istatistik').catch(()=>null),
-      bridgeGet('/api/admin/servisler?limit=200'),
+      bridgeGet('/api/admin/servisler?limit=2000'),
     ]);
 
     if (!svcRes.success) throw new Error(svcRes.error);
