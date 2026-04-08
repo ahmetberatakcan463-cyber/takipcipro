@@ -578,12 +578,9 @@
         <div class="adm-card" style="max-width:560px;">
           <div class="adm-card-hdr"><h2>Gelişmiş Ayarlar</h2></div>
           <div class="form-group">
-            <label><i class="fas fa-satellite-dish" style="color:var(--gold);margin-right:4px;"></i>Köprü Sunucu URL (ngrok adresi)</label>
-            <input type="text" id="setBridgeUrl" placeholder="https://abc123.ngrok-free.app">
-          </div>
-          <div class="form-group">
-            <label><i class="fas fa-key" style="color:var(--gold);margin-right:4px;"></i>Dahili API Anahtarı (INTERNAL_API_KEY)</label>
-            <input type="password" id="setBridgeKey" placeholder=".env'deki INTERNAL_API_KEY değeri">
+            <label><i class="fas fa-satellite-dish" style="color:var(--gold);margin-right:4px;"></i>Railway Köprü URL</label>
+            <input type="text" id="setBridgeUrl" placeholder="https://takipcipro-production-6b77.up.railway.app">
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Servis yönetimi için gerekli. Bir kez girilir.</div>
           </div>
           <div class="form-group">
             <label>Bakım Modu</label>
@@ -1467,18 +1464,26 @@ function resetPackages(){
 /* ─────────────────────────────────────────────────────
    SERVİS YÖNETİMİ (MongoDB + server.js)
 ───────────────────────────────────────────────────── */
-const BRIDGE = () => window.BRIDGE_URL || localStorage.getItem('tp_bridge_url') || null;
-const AKEY   = () => window.INTERNAL_KEY || localStorage.getItem('tp_bridge_key') || null;
+const BRIDGE = () => {
+  return localStorage.getItem('tp_bridge') ||
+         localStorage.getItem('tp_bridge_url') ||
+         localStorage.getItem('tp_api_base') || null;
+};
+const adminHeaders = (extra) => ({
+  'x-admin-pw': localStorage.getItem('tp_admin_hash') || '',
+  ...extra
+});
 
 async function bridgeGet(path) {
   if (!BRIDGE()) throw new Error('Köprü URL ayarlı değil. Ayarlar → Gelişmiş bölümüne gir.');
-  const r = await fetch(`${BRIDGE()}${path}`, { headers:{ 'x-api-key': AKEY()||'' } });
+  const r = await fetch(`${BRIDGE()}${path}`, { headers: adminHeaders() });
   return r.json();
 }
 async function bridgePost(path, body) {
   if (!BRIDGE()) throw new Error('Köprü URL ayarlı değil.');
   const r = await fetch(`${BRIDGE()}${path}`, {
-    method:'POST', headers:{ 'Content-Type':'application/json', 'x-api-key': AKEY()||'' },
+    method: 'POST',
+    headers: adminHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return r.json();
@@ -1486,7 +1491,8 @@ async function bridgePost(path, body) {
 async function bridgePut(path, body) {
   if (!BRIDGE()) throw new Error('Köprü URL ayarlı değil.');
   const r = await fetch(`${BRIDGE()}${path}`, {
-    method:'PUT', headers:{ 'Content-Type':'application/json', 'x-api-key': AKEY()||'' },
+    method: 'PUT',
+    headers: adminHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(body),
   });
   return r.json();
@@ -2070,8 +2076,7 @@ function loadSettings(){
   set('setWa',      s.waNumber,  '905050204037');
   set('setEmail',   s.email,     '');
   set('setIg',      s.instagram, '');
-  set('setBridgeUrl', localStorage.getItem('tp_bridge_url')||'');
-  set('setBridgeKey', '');  // Güvenlik: şifre alanı boş göster
+  set('setBridgeUrl', localStorage.getItem('tp_bridge') || localStorage.getItem('tp_bridge_url') || '');
   set('setMaintenance',s.maintenance?'true':'false');
   set('setOrders',  s.ordersOpen===false?'false':'true');
   set('setAbout',   s.about,     '');
@@ -2116,10 +2121,13 @@ function saveSettings(section){
     s.ordersOpen  = document.getElementById('setOrders').value==='true';
     s.about       = document.getElementById('setAbout').value.trim();
     // Köprü bilgilerini localStorage'a kaydet (window değişkenlerine de aktar)
-    const bridgeUrl = document.getElementById('setBridgeUrl').value.trim();
-    const bridgeKey = document.getElementById('setBridgeKey').value.trim();
-    if (bridgeUrl) { localStorage.setItem('tp_bridge_url', bridgeUrl); window.BRIDGE_URL = bridgeUrl; }
-    if (bridgeKey) { localStorage.setItem('tp_bridge_key', bridgeKey); window.INTERNAL_KEY = bridgeKey; }
+    const bridgeUrl = document.getElementById('setBridgeUrl').value.trim().replace(/\/$/, '');
+    if (bridgeUrl) {
+      localStorage.setItem('tp_bridge',     bridgeUrl);
+      localStorage.setItem('tp_bridge_url', bridgeUrl);
+      localStorage.setItem('tp_api_base',   bridgeUrl);
+      window.BRIDGE_URL = bridgeUrl;
+    }
     saveSettings2(s); addLog('Gelişmiş ayarlar kaydedildi.','green'); toast('Ayarlar kaydedildi!',true);
   }
 }
