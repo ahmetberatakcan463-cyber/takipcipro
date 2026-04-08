@@ -136,15 +136,15 @@ app.get('/api/vitrin', async (req, res) => {
 
     const paketler = servisler.map(s => ({
       id:        s.servisId,
-      name:      s.vitrinAd   || s.vitrinAd,
+      name:      s.vitrinAd   || '',
       emoji:     s.emoji      || '⭐',
-      amount:    s.min,        // Minimum miktar paket boyutu olarak
       price:     s.musteriTL,
       oldPrice:  s.eskiFiyatTL > 0 ? s.eskiFiyatTL : null,
       delivery:  s.teslimat   || '15-30 dakika',
       popular:   s.populer    || false,
       aciklama:  s.aciklama   || '',
-      features:  ['Gerçek hesaplar', 'Anlık teslimat', '30 gün garanti'],
+      min:       s.min,
+      max:       s.max,
     }));
 
     res.json({ success:true, data: paketler });
@@ -177,6 +177,16 @@ app.post('/api/siparis-ver', siparisSiniri, async (req, res) => {
   const servis = await Service.findOne({ servisId: serviceId }).catch(() => null);
 
   console.log(`[SİPARİŞ] @${username} → ${quantity} adet (Servis: ${serviceId})`);
+
+  // Manuel servisler (negatif ID) SMM'e gönderilmez, beklemede kaydedilir
+  if (serviceId < 0) {
+    await Order.create({ serviceId, username, quantity, status: 'manuel', smmResponse: {} });
+    const logs = readLog();
+    logs.unshift({ tarih:new Date().toISOString(), igKullanici:username,
+      miktar:quantity, servisId:serviceId, durum:'manuel' });
+    writeLog(logs);
+    return res.json({ success:true, message:'Siparişiniz alındı! En kısa sürede teslim edilecek.' });
+  }
 
   try {
     // Sipariş öncesi bakiye kontrolü
@@ -370,6 +380,67 @@ app.put('/api/admin/servis/:servisId', adminGuard, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/servis/ekle
+ * Manuel olarak yeni bir servis ekle (SMM panelinden bağımsız)
+ */
+app.post('/api/admin/servis/ekle', adminGuard, async (req, res) => {
+  const { vitrinAd, aciklama, emoji, teslimat, kategori, min, max,
+          musteriTL, eskiFiyatTL, vitrin, populer, sira, servisId: bodyServisId } = req.body;
+
+  if (!vitrinAd) return res.status(400).json({ success:false, error:'vitrinAd zorunlu.' });
+
+  // Gerçek SMM ID'si verilmişse onu kullan, yoksa negatif ID üret
+  let yeniId;
+  if (bodyServisId && Number(bodyServisId) > 0) {
+    yeniId = Number(bodyServisId);
+    const mevcut = await Service.findOne({ servisId: yeniId });
+    if (mevcut) return res.status(409).json({ success:false, error:`Servis ID ${yeniId} zaten mevcut.` });
+  } else {
+    const enKucuk = await Service.findOne({ servisId:{ $lt:0 } }).sort({ servisId:1 });
+    yeniId = enKucuk ? enKucuk.servisId - 1 : -1;
+  }
+
+  const yeni = await Service.create({
+    servisId:    yeniId,
+    kategori:    kategori   || 'Manuel',
+    orijinalAd:  vitrinAd,
+    vitrinAd,
+    aciklama:    aciklama   || '',
+    emoji:       emoji      || '⭐',
+    teslimat:    teslimat   || '',
+    min:         Number(min)         || 1,
+    max:         Number(max)         || 99999,
+    musteriTL:   Number(musteriTL)   || 0,
+    eskiFiyatTL: Number(eskiFiyatTL) || 0,
+    vitrin:      vitrin  !== undefined ? Boolean(vitrin)  : true,
+    aktif:       true,
+    populer:     Boolean(populer),
+    sira:        Number(sira) || 999,
+    fiyat:       0,
+  });
+
+  res.json({ success:true, data:yeni });
+});
+
+/**
+ * GET /api/admin/servis-sorgula/:servisId
+ * SosyalBizde'den tek bir servisin bilgisini çeker (ilan ekleme sihirbazı için)
+ */
+app.get('/api/admin/servis-sorgula/:servisId', adminGuard, async (req, res) => {
+  const id = Number(req.params.servisId);
+  if (!id) return res.status(400).json({ success:false, error:'Geçersiz servis ID.' });
+
+  try {
+    const data = await smmCall({ action:'services' });
+    const servis = Array.isArray(data) ? data.find(s => Number(s.service) === id) : null;
+    if (!servis) return res.status(404).json({ success:false, error:`ID ${id} bulunamadı.` });
+    res.json({ success:true, data:{ id, name:servis.name, min:servis.min, max:servis.max, rate:servis.rate } });
+  } catch(e) {
+    res.status(500).json({ success:false, error:e.message });
+  }
+});
+
+/**
  * POST /api/admin/toplu-vitrin
  * Birden fazla servisi toplu vitrin aç/kapat.
  * Body: { servisIdler: [101, 103, 105], vitrin: true }
@@ -489,6 +560,7 @@ app.listen(PORT, () => {
   console.log('Public  : POST /api/siparis-ver');
   console.log('Admin   : GET  /api/admin/servisler');
   console.log('Admin   : PUT  /api/admin/servis/:id');
+  console.log('Admin   : POST /api/admin/servis/ekle');
   console.log('Admin   : POST /api/admin/toplu-vitrin');
   console.log('Admin   : POST /api/admin/servisleri-guncelle');
   console.log('Admin   : GET  /api/admin/istatistik');

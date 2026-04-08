@@ -39,16 +39,12 @@
     <span class="nav-logo-text">Takipçi<span>Pro</span></span>
   </div>
   <ul class="nav-links">
-    <li><a href="#paketler">Paketler</a></li>
     <li><a href="#nasil-calisir">Nasıl Çalışır</a></li>
     <li><a href="#yorumlar">Yorumlar</a></li>
     <li><a href="#sss">SSS</a></li>
     <li><a href="#siparis-takip">Sipariş Takip</a></li>
   </ul>
   <div class="nav-cta">
-    <button class="btn-outline" onclick="document.getElementById('paketler').scrollIntoView({behavior:'smooth'})">
-      <i class="fa-solid fa-bolt"></i> Hemen Başla
-    </button>
     <button class="hamburger" id="hamburger" onclick="toggleMobileNav()">
       <span></span><span></span><span></span>
     </button>
@@ -58,7 +54,6 @@
 <!-- Mobile Nav -->
 <div class="mobile-nav" id="mobileNav">
   <button onclick="toggleMobileNav()" style="position:absolute;top:20px;right:20px;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
-  <a href="#paketler" onclick="toggleMobileNav()">Paketler</a>
   <a href="#nasil-calisir" onclick="toggleMobileNav()">Nasıl Çalışır</a>
   <a href="#yorumlar" onclick="toggleMobileNav()">Yorumlar</a>
   <a href="#sss" onclick="toggleMobileNav()">SSS</a>
@@ -81,9 +76,6 @@
         Anında teslimat, 7/24 destek ve %100 güvenli ödeme.
       </p>
       <div class="hero-btns">
-        <button class="btn-gold" onclick="document.getElementById('paketler').scrollIntoView({behavior:'smooth'})">
-          <i class="fa-solid fa-rocket"></i> Paketleri Gör
-        </button>
         <button class="btn-outline" onclick="document.getElementById('siparis-takip').scrollIntoView({behavior:'smooth'})">
           <i class="fa-solid fa-magnifying-glass"></i> Sipariş Takip
         </button>
@@ -183,189 +175,6 @@
     <div class="trust-item-text"><strong>Düşme Garantisi</strong><span>30 gün koruma</span></div>
   </div>
 </div>
-
-<!-- ========== PACKAGES ========== -->
-<section class="section" id="paketler">
-  <div class="section-header">
-    <div class="section-tag">Paketler</div>
-    <h2>Sana Uygun Paketi Seç</h2>
-    <p>Tüm paketler gerçek hesaplardan gelir, şifrenizi asla istemeyiz.</p>
-  </div>
-
-  <!-- Category Tabs -->
-  <div style="display:flex;justify-content:center;gap:10px;margin-bottom:36px;flex-wrap:wrap;">
-    <button class="btn-gold" id="tab-takipci" onclick="switchTab('takipci')"><i class="fa-solid fa-user-plus"></i> Takipçi</button>
-    <button class="btn-outline" id="tab-begeni" onclick="switchTab('begeni')"><i class="fa-solid fa-heart"></i> Beğeni</button>
-    <button class="btn-outline" id="tab-izlenme" onclick="switchTab('izlenme')"><i class="fa-solid fa-play"></i> İzlenme</button>
-  </div>
-
-  <!-- Takipçi Paketleri -->
-  <div class="packages-grid" id="pkgs-takipci">
-    <div class="package-card">
-      <div class="pkg-name">Başlangıç</div>
-      <div class="pkg-amount">500 <span>Takipçi</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺29</span>
-        <span class="pkg-old-price">₺45</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Türk & Yabancı Karışık</li>
-        <li><i class="fa-solid fa-check"></i> Profil fotoğraflı hesaplar</li>
-        <li><i class="fa-solid fa-check"></i> 5-30 dk içinde başlar</li>
-        <li><i class="fa-solid fa-check"></i> 30 gün düşme garantisi</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Başlangıç Takipçi', amount:'500 Takipçi', price:29, oldPrice:45, id:'T500'})">Hemen Al</button>
-    </div>
-    <div class="package-card popular">
-      <div class="popular-badge"><i class="fa-solid fa-fire"></i> En Çok Satan</div>
-      <div class="pkg-discount-badge">%35 İndirim</div>
-      <div class="pkg-name">Popüler</div>
-      <div class="pkg-amount">1.000 <span>Takipçi</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺49</span>
-        <span class="pkg-old-price">₺75</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Türk Gerçek Takipçi</li>
-        <li><i class="fa-solid fa-check"></i> Aktif ve etkileşimli</li>
-        <li><i class="fa-solid fa-check"></i> Anında teslimat</li>
-        <li><i class="fa-solid fa-check"></i> 30 gün düşme garantisi</li>
-        <li><i class="fa-solid fa-check"></i> Öncelikli destek</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Popüler Takipçi', amount:'1.000 Takipçi', price:49, oldPrice:75, id:'T1000'})">Hemen Al</button>
-    </div>
-    <div class="package-card">
-      <div class="pkg-discount-badge">%40 İndirim</div>
-      <div class="pkg-name">Profesyonel</div>
-      <div class="pkg-amount">2.500 <span>Takipçi</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺99</span>
-        <span class="pkg-old-price">₺165</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> %100 Türk Gerçek</li>
-        <li><i class="fa-solid fa-check"></i> Organik görünüm</li>
-        <li><i class="fa-solid fa-check"></i> Kademeli teslimat</li>
-        <li><i class="fa-solid fa-check"></i> 60 gün düşme garantisi</li>
-        <li><i class="fa-solid fa-check"></i> VIP destek hattı</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Profesyonel Takipçi', amount:'2.500 Takipçi', price:99, oldPrice:165, id:'T2500'})">Hemen Al</button>
-    </div>
-    <div class="package-card">
-      <div class="pkg-discount-badge">%45 İndirim</div>
-      <div class="pkg-name">Kurumsal</div>
-      <div class="pkg-amount">5.000 <span>Takipçi</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺179</span>
-        <span class="pkg-old-price">₺325</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Premium Türk Takipçi</li>
-        <li><i class="fa-solid fa-check"></i> Çok yavaş & doğal</li>
-        <li><i class="fa-solid fa-check"></i> Hesap analizi hediye</li>
-        <li><i class="fa-solid fa-check"></i> 90 gün düşme garantisi</li>
-        <li><i class="fa-solid fa-check"></i> Özel hesap yöneticisi</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Kurumsal Takipçi', amount:'5.000 Takipçi', price:179, oldPrice:325, id:'T5000'})">Hemen Al</button>
-    </div>
-  </div>
-
-  <!-- Beğeni Paketleri -->
-  <div class="packages-grid" id="pkgs-begeni" style="display:none;">
-    <div class="package-card">
-      <div class="pkg-name">Başlangıç</div>
-      <div class="pkg-amount">100 <span>Beğeni</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺9</span>
-        <span class="pkg-old-price">₺15</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Gerçek hesaplardan</li>
-        <li><i class="fa-solid fa-check"></i> Anında teslimat</li>
-        <li><i class="fa-solid fa-check"></i> Güvenli yöntem</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Başlangıç Beğeni', amount:'100 Beğeni', price:9, oldPrice:15, id:'B100'})">Hemen Al</button>
-    </div>
-    <div class="package-card popular">
-      <div class="popular-badge"><i class="fa-solid fa-fire"></i> En Çok Satan</div>
-      <div class="pkg-name">Popüler</div>
-      <div class="pkg-amount">500 <span>Beğeni</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺29</span>
-        <span class="pkg-old-price">₺50</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Türk gerçek beğeni</li>
-        <li><i class="fa-solid fa-check"></i> Anında teslimat</li>
-        <li><i class="fa-solid fa-check"></i> Profil fotoğraflı</li>
-        <li><i class="fa-solid fa-check"></i> Öncelikli destek</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Popüler Beğeni', amount:'500 Beğeni', price:29, oldPrice:50, id:'B500'})">Hemen Al</button>
-    </div>
-    <div class="package-card">
-      <div class="pkg-name">Profesyonel</div>
-      <div class="pkg-amount">1.000 <span>Beğeni</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺49</span>
-        <span class="pkg-old-price">₺85</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> %100 Türk beğeni</li>
-        <li><i class="fa-solid fa-check"></i> Kademeli dağılım</li>
-        <li><i class="fa-solid fa-check"></i> Keşfet desteği</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Profesyonel Beğeni', amount:'1.000 Beğeni', price:49, oldPrice:85, id:'B1000'})">Hemen Al</button>
-    </div>
-  </div>
-
-  <!-- İzlenme Paketleri -->
-  <div class="packages-grid" id="pkgs-izlenme" style="display:none;">
-    <div class="package-card">
-      <div class="pkg-name">Başlangıç</div>
-      <div class="pkg-amount">1.000 <span>Reels İzlenme</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺12</span>
-        <span class="pkg-old-price">₺20</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Gerçek izlenmeler</li>
-        <li><i class="fa-solid fa-check"></i> Anında başlar</li>
-        <li><i class="fa-solid fa-check"></i> Keşfet desteği</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Başlangıç İzlenme', amount:'1.000 Reels İzlenme', price:12, oldPrice:20, id:'I1000'})">Hemen Al</button>
-    </div>
-    <div class="package-card popular">
-      <div class="popular-badge"><i class="fa-solid fa-fire"></i> En Çok Satan</div>
-      <div class="pkg-name">Popüler</div>
-      <div class="pkg-amount">5.000 <span>Reels İzlenme</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺39</span>
-        <span class="pkg-old-price">₺65</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Organik görünümlü</li>
-        <li><i class="fa-solid fa-check"></i> Keşfet algoritması dostu</li>
-        <li><i class="fa-solid fa-check"></i> Anında teslimat</li>
-        <li><i class="fa-solid fa-check"></i> Öncelikli destek</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Popüler İzlenme', amount:'5.000 Reels İzlenme', price:39, oldPrice:65, id:'I5000'})">Hemen Al</button>
-    </div>
-    <div class="package-card">
-      <div class="pkg-name">Profesyonel</div>
-      <div class="pkg-amount">10.000 <span>Reels İzlenme</span></div>
-      <div class="pkg-price-row">
-        <span class="pkg-price">₺69</span>
-        <span class="pkg-old-price">₺120</span>
-      </div>
-      <ul class="pkg-features">
-        <li><i class="fa-solid fa-check"></i> Maksimum viral etki</li>
-        <li><i class="fa-solid fa-check"></i> Kademeli artış</li>
-        <li><i class="fa-solid fa-check"></i> VIP destek</li>
-      </ul>
-      <button class="pkg-btn" onclick="openModal({name:'Profesyonel İzlenme', amount:'10.000 Reels İzlenme', price:69, oldPrice:120, id:'I10000'})">Hemen Al</button>
-    </div>
-  </div>
-</section>
 
 <!-- ========== İLANLAR ========== -->
 <section class="section section-bg" id="ilanlar">
@@ -715,29 +524,9 @@
   let catalogServices = [];
   let selectedService = null;
   const ORDER_API_BASE = localStorage.getItem('tp_api_base') || 'https://takipcipro-production-6b77.up.railway.app';
-  const fallbackServices = [
-    { id: 3859, name: "Instagram Video İzlenme - Instant", price: 0.08, min: 100, max: 2147483647 },
-    { id: 4095, name: "Keşfet Etkili Video İzlenme - Hızlı", price: 0.09, min: 100, max: 2000000 },
-    { id: 4479, name: "Instagram Karışık Takipçi (Düşüş Olabilir)", price: 7.14, min: 10, max: 25000 },
-    { id: 4453, name: "TikTok Video İzlenme - Ekonomik", price: 0.22, min: 100, max: 2147483647 },
-    { id: 4475, name: "Türk Beğeni Algoritma Uyumlu (Max 1k)", price: 25.72, min: 10, max: 1000 },
-    { id: 4465, name: "Türk Beğeni Algoritma Uyumlu (Max 3k)", price: 34.91, min: 20, max: 3000 },
-    { id: 4011, name: "Instagram Takipçi - 100 Gün Garantili", price: 93.93, min: 10, max: 1000000 },
-    { id: 4440, name: "Instagram Türk Takipçi - Bütçe Dostu", price: 178.2, min: 50, max: 3000 },
-    { id: 3800, name: "Instagram Türk Kadın Takipçi", price: 278.4, min: 50, max: 5000 }
-  ];
 
   function formatTL(value) {
     return Number(value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  function calculateSalePrice(basePrice) {
-    const p = Number(basePrice || 0);
-    if (p <= 0.2) return Number((p * 8).toFixed(2));
-    if (p <= 1) return Number((p * 5).toFixed(2));
-    if (p <= 10) return Number((p * 3.2).toFixed(2));
-    if (p <= 50) return Number((p * 2.4).toFixed(2));
-    return Number((p * 1.9).toFixed(2));
   }
 
   function updateSummaryPrice() {
@@ -753,15 +542,16 @@
     selectedService = service;
     if (!service) return;
 
+    const qty = service.min;
     currentPkg.id = service.id;
     currentPkg.name = service.name;
-    currentPkg.amount = service.min;
-    currentPkg.price = calculateSalePrice(service.price);
+    currentPkg.amount = qty;
+    currentPkg.price = service.price;
 
     document.getElementById('modalPkgName').textContent = service.name;
-    document.getElementById('modalPkgAmount').textContent = `${service.min} - ${service.max}`;
+    document.getElementById('modalPkgAmount').textContent = qty + ' Adet';
     document.getElementById('selectedProductMeta').textContent =
-      `Servis ID: ${service.id} | Alış: ₺${formatTL(service.price)} | Satış: ₺${formatTL(currentPkg.price)} | Min: ${service.min} | Max: ${service.max}`;
+      `${service.name} | Min: ${service.min} | Max: ${service.max}`;
 
     discountApplied = 0;
     document.getElementById('discountRow').style.display = 'none';
@@ -772,32 +562,18 @@
   async function loadServicesToSelect() {
     const select = document.getElementById('productSelect');
     try {
-      let res = await fetch('../services.json');
-      if (!res.ok) {
-        res = await fetch('/services.json');
-      }
-      if (!res.ok) {
-        throw new Error('services.json okunamadı');
-      }
-      const data = await res.json();
-      catalogServices = Array.isArray(data) ? data : [];
-      renderServiceCards();
-
-      if (!catalogServices.length) {
-        select.innerHTML = '<option value="">Ürün bulunamadı</option>';
-        return;
-      }
-
-      select.innerHTML = '<option value="">Ürün Seçiniz</option>' +
-        catalogServices
-          .map(s => `<option value="${s.id}">${s.name}</option>`)
-          .join('');
-    } catch (err) {
-      console.warn('services.json yüklenemedi, fallback kullanılıyor:', err);
-      catalogServices = fallbackServices;
+      const res = await fetch(ORDER_API_BASE + '/api/vitrin');
+      const json = await res.json();
+      if (!json.success || !json.data.length) throw new Error('Vitrin boş');
+      catalogServices = json.data;
       renderServiceCards();
       select.innerHTML = '<option value="">Ürün Seçiniz</option>' +
         catalogServices.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    } catch (err) {
+      console.warn('Vitrin yüklenemedi:', err);
+      catalogServices = [];
+      renderServiceCards();
+      select.innerHTML = '<option value="">Servis bulunamadı</option>';
     }
   }
 
@@ -806,18 +582,24 @@
     if (!container) return;
 
     if (!catalogServices.length) {
-      container.innerHTML = '<div class="ilan-empty">Servisler yüklenemedi veya boş.</div>';
+      container.innerHTML = '<div class="ilan-empty">Henüz servis eklenmemiş.</div>';
       return;
     }
 
+    const isFixed = s => s.min === s.max;
+
     container.innerHTML = catalogServices.map(service => `
       <div class="ilan-col">
-        <div class="ilan-card">
-          <div class="ilan-badge">#${service.id}</div>
-          <h3 class="ilan-title">${service.name}</h3>
-          <div class="ilan-meta"><strong>1000 Adet Satış Fiyatı:</strong> ₺${formatTL(calculateSalePrice(service.price))}</div>
-          <div class="ilan-meta" style="opacity:.8;"><strong>Tedarik Fiyatı:</strong> ₺${formatTL(service.price)}</div>
-          <div class="ilan-meta"><strong>Min:</strong> ${service.min} &nbsp;|&nbsp; <strong>Max:</strong> ${service.max}</div>
+        <div class="ilan-card${service.popular ? ' popular' : ''}">
+          ${service.popular ? '<div class="popular-badge"><i class="fa-solid fa-fire"></i> En Çok Satan</div>' : ''}
+          <div class="pkg-name">${service.emoji} ${service.name}</div>
+          <div class="pkg-amount">${Number(service.min).toLocaleString('tr-TR')} <span>${service.aciklama || 'Adet'}</span></div>
+          <div class="pkg-price-row">
+            <span class="pkg-price">₺${formatTL(service.price)}</span>
+            ${service.oldPrice ? `<span class="pkg-old-price">₺${formatTL(service.oldPrice)}</span>` : ''}
+          </div>
+          ${service.delivery ? `<div style="font-size:12px;color:var(--muted);margin:6px 0 10px;"><i class="fa-solid fa-bolt" style="color:var(--gold2);"></i> ${service.delivery}</div>` : ''}
+          ${!isFixed(service) ? `
           <div class="ilan-qty-row">
             <label class="ilan-qty-label">Adet</label>
             <div class="ilan-qty-controls">
@@ -825,9 +607,9 @@
               <input class="ilan-qty-input" id="qty-${service.id}" type="number" min="${service.min}" max="${service.max}" value="${service.min}" oninput="clampQty(${service.id})">
               <button class="ilan-qty-btn" onclick="changeQty(${service.id},1)">+</button>
             </div>
-          </div>
-          <button class="ilan-buy-btn" onclick="buyService(${service.id})">
-            <i class="fa-solid fa-cart-shopping"></i> Satın Al
+          </div>` : ''}
+          <button class="pkg-btn" onclick="buyService(${service.id})">
+            <i class="fa-solid fa-cart-shopping"></i> Hemen Al
           </button>
         </div>
       </div>
@@ -854,36 +636,32 @@
 
   function buyService(serviceId) {
     const service = catalogServices.find(s => s.id === Number(serviceId));
-    if (!service) {
-      alert('Servis bulunamadı.');
-      return;
-    }
+    if (!service) { alert('Servis bulunamadı.'); return; }
 
     const qtyInput = document.getElementById('qty-' + serviceId);
-    const qty = qtyInput ? Math.max(service.min, Math.min(service.max, parseInt(qtyInput.value) || service.min)) : service.min;
-    const unitPrice = calculateSalePrice(service.price); // per 1000
-    const totalPrice = Number(((qty / 1000) * unitPrice).toFixed(2));
+    const qty = qtyInput
+      ? Math.max(service.min, Math.min(service.max, parseInt(qtyInput.value) || service.min))
+      : service.min;
 
-    openModal({
-      id: service.id,
-      name: service.name,
-      amount: qty,
-      price: totalPrice,
-    });
+    // Sabit paket: düz fiyat. Değişken: miktar orantılı fiyat
+    const totalPrice = service.min === service.max
+      ? service.price
+      : Number(((qty / service.min) * service.price).toFixed(2));
+
+    openModal({ id: service.id, name: service.name, amount: qty, price: totalPrice });
 
     const select = document.getElementById('productSelect');
     if (select) {
       select.value = String(service.id);
-      // Ürün seçimi sonrası fiyatı elle ayarla (onProductChange qty'yi min'e sıfırlar)
       selectedService = service;
-      currentPkg.id = service.id;
-      currentPkg.name = service.name;
-      currentPkg.amount = qty;
-      currentPkg.price = totalPrice;
+      currentPkg = { id: service.id, name: service.name, amount: qty, price: totalPrice };
       document.getElementById('modalPkgName').textContent = service.name;
       document.getElementById('modalPkgAmount').textContent = qty + ' Adet';
       document.getElementById('selectedProductMeta').textContent =
-        `Servis ID: ${service.id} | Birim Fiyat (1000): ₺${formatTL(unitPrice)} | Sipariş Adedi: ${qty}`;
+        `${service.name} | Adet: ${qty}`;
+      discountApplied = 0;
+      document.getElementById('discountRow').style.display = 'none';
+      document.getElementById('discountMsg').textContent = '';
       updateSummaryPrice();
     }
   }
@@ -893,16 +671,11 @@
     return JSON.parse(localStorage.getItem('tp_discounts') || '{"HOSGELDIN":10,"VIP20":20,"INDIRIM15":15}');
   }
 
-  // ---- Tab Switch ----
+  // ---- Tab Switch (kullanılmıyor, eski kod) ----
   function switchTab(tab) {
-    ['takipci','begeni','izlenme'].forEach(t => {
-      document.getElementById('pkgs-'+t).style.display = t === tab ? 'grid' : 'none';
-      const btn = document.getElementById('tab-'+t);
-      if (t === tab) {
-        btn.className = 'btn-gold';
-      } else {
-        btn.className = 'btn-outline';
-      }
+    // eski paket sistemi kaldırıldı
+    void tab;
+    if (false) {
     });
   }
 

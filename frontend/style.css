@@ -364,9 +364,10 @@ img{max-width:100%;}
   transform:translateY(-6px);border-color:rgba(201,162,39,.5);
   box-shadow:0 16px 50px rgba(0,0,0,.5);
 }
-.package-card.popular{
+.package-card.popular,.ilan-card.popular{
   border-color:var(--gold);
   background:linear-gradient(160deg,rgba(201,162,39,.1) 0%,var(--card) 60%);
+  position:relative;
 }
 .popular-badge{
   position:absolute;top:-13px;left:50%;transform:translateX(-50%);
@@ -396,13 +397,13 @@ img{max-width:100%;}
   width:100%;padding:12px;border-radius:9px;border:none;
   font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;
 }
-.package-card.popular .pkg-btn{
+.package-card.popular .pkg-btn,.ilan-card.popular .pkg-btn{
   background:linear-gradient(135deg,var(--gold),var(--gold2));color:#0d0d0d;
 }
-.package-card:not(.popular) .pkg-btn{
+.package-card:not(.popular) .pkg-btn,.ilan-card:not(.popular) .pkg-btn{
   background:transparent;border:1.5px solid var(--gold);color:var(--gold);
 }
-.package-card:not(.popular) .pkg-btn:hover{background:var(--gold);color:#0d0d0d;}
+.package-card:not(.popular) .pkg-btn:hover,.ilan-card:not(.popular) .pkg-btn:hover{background:var(--gold);color:#0d0d0d;}
 
 /* ============================================================
    HOW IT WORKS
