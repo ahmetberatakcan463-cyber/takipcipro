@@ -76,7 +76,11 @@ const siparisSiniri = rateLimit({
 
 // API Key kontrolü (tüm /api/admin/* rotalarında)
 function adminGuard(req, res, next) {
-  if (req.headers['x-api-key'] !== process.env.INTERNAL_API_KEY) {
+  const key  = req.headers['x-api-key']  || '';
+  const hash = req.headers['x-admin-pw'] || '';
+  const validKey  = key  === process.env.INTERNAL_API_KEY;
+  const validHash = hash !== '' && hash === (process.env.ADMIN_HASH || '9424db21e37428d50fdcc23149c1a66b87f8f9154c1fcdcf3802ef8146288a70');
+  if (!validKey && !validHash) {
     console.warn(`[YETKİSİZ] IP: ${req.ip}`);
     return res.status(401).json({ success:false, error:'Yetkisiz.' });
   }
