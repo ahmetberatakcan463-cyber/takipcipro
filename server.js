@@ -55,7 +55,7 @@ app.use(cors({
     cb(new Error('CORS: Bu kaynaktan istek kabul edilmiyor.'));
   },
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','x-api-key'],
+  allowedHeaders: ['Content-Type','x-api-key','x-admin-pw'],
 }));
 
 // Genel rate limit — saatte 60 istek
@@ -74,13 +74,20 @@ const siparisSiniri = rateLimit({
    YARDIMCILAR
 ───────────────────────────────────────────────────── */
 
-// API Key kontrolü (tüm /api/admin/* rotalarında)
+// Admin doğrulama — x-api-key (INTERNAL_API_KEY) VEYA x-admin-pw (şifre hash) kabul eder
 function adminGuard(req, res, next) {
-  if (req.headers['x-api-key'] !== process.env.INTERNAL_API_KEY) {
-    console.warn(`[YETKİSİZ] IP: ${req.ip}`);
-    return res.status(401).json({ success:false, error:'Yetkisiz.' });
-  }
-  next();
+  const apiKey   = req.headers['x-api-key']   || '';
+  const adminPw  = req.headers['x-admin-pw']  || '';
+  const validKey = process.env.INTERNAL_API_KEY || '';
+  const validHash= process.env.ADMIN_PW_HASH   || '';
+
+  if (validKey && apiKey  === validKey)  return next();
+  if (validHash && adminPw === validHash) return next();
+  // Geliştirme: her ikisi de ayarlı değilse izin ver (Railway'de mutlaka biri set edilmeli)
+  if (!validKey && !validHash) return next();
+
+  console.warn(`[YETKİSİZ] IP: ${req.ip}`);
+  return res.status(401).json({ success:false, error:'Yetkisiz.' });
 }
 
 // Input temizle

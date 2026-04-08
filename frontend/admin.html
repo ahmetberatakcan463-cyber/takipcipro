@@ -583,6 +583,11 @@
             <div style="font-size:11px;color:var(--muted);margin-top:4px;">Servis yönetimi için gerekli. Bir kez girilir.</div>
           </div>
           <div class="form-group">
+            <label><i class="fas fa-key" style="color:var(--gold);margin-right:4px;"></i>Dahili API Anahtarı (INTERNAL_API_KEY)</label>
+            <input type="password" id="setBridgeKey" placeholder="Railway Variables'dan kopyala">
+            <div style="font-size:11px;color:var(--muted);margin-top:4px;">Railway → Variables → INTERNAL_API_KEY değeri.</div>
+          </div>
+          <div class="form-group">
             <label>Bakım Modu</label>
             <select id="setMaintenance" class="st-sel" style="width:100%;padding:11px 14px;">
               <option value="false">Kapalı (Site Normal)</option>
@@ -1470,6 +1475,7 @@ const BRIDGE = () => {
          localStorage.getItem('tp_api_base') || null;
 };
 const adminHeaders = (extra) => ({
+  'x-api-key':  localStorage.getItem('tp_bridge_key') || '',
   'x-admin-pw': localStorage.getItem('tp_admin_hash') || '',
   ...extra
 });
@@ -2077,6 +2083,7 @@ function loadSettings(){
   set('setEmail',   s.email,     '');
   set('setIg',      s.instagram, '');
   set('setBridgeUrl', localStorage.getItem('tp_bridge') || localStorage.getItem('tp_bridge_url') || '');
+  set('setBridgeKey', '');
   set('setMaintenance',s.maintenance?'true':'false');
   set('setOrders',  s.ordersOpen===false?'false':'true');
   set('setAbout',   s.about,     '');
@@ -2127,6 +2134,11 @@ function saveSettings(section){
       localStorage.setItem('tp_bridge_url', bridgeUrl);
       localStorage.setItem('tp_api_base',   bridgeUrl);
       window.BRIDGE_URL = bridgeUrl;
+    }
+    const bridgeKey = document.getElementById('setBridgeKey').value.trim();
+    if (bridgeKey) {
+      localStorage.setItem('tp_bridge_key', bridgeKey);
+      window.INTERNAL_KEY = bridgeKey;
     }
     saveSettings2(s); addLog('Gelişmiş ayarlar kaydedildi.','green'); toast('Ayarlar kaydedildi!',true);
   }
