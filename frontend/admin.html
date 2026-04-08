@@ -702,16 +702,6 @@
   console.log(m,'color:#f59e0b;font-size:14px;font-weight:600;');
 })();
 
-/* ─── Gizli URL Token Kontrolü ─── */
-(function(){
-  const GEREKLI_TOKEN = 'berat2024';
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('gir') !== GEREKLI_TOKEN) {
-    document.body.innerHTML = '';
-    window.location.replace('https://takipcipro.netlify.app');
-  }
-})();
-
 /* ─── Güvenlik Sabitleri ─── */
 const MAX_ATTEMPTS   = 5;          // Maksimum yanlış giriş
 const LOCKOUT_MINS   = 30;         // Kilit süresi (dakika)
