@@ -17,6 +17,7 @@ const rateLimit  = require('express-rate-limit');
 const mongoose   = require('mongoose');
 const fs         = require('fs');
 const path       = require('path');
+const crypto     = require('crypto');
 const Service    = require('./models/Service');
 const Order      = require('./models/Order');
 
@@ -76,17 +77,20 @@ const siparisSiniri = rateLimit({
    YARDIMCILAR
 ───────────────────────────────────────────────────── */
 
+// Admin şifre hash'i — ADMIN_PASSWORD env'den hesaplanır
+const ADMIN_PW_HASH = process.env.ADMIN_PASSWORD
+  ? crypto.createHash('sha256').update(process.env.ADMIN_PASSWORD).digest('hex')
+  : (process.env.ADMIN_PW_HASH || '');
+
 // Admin doğrulama — x-api-key (INTERNAL_API_KEY) VEYA x-admin-pw (şifre hash) kabul eder
 function adminGuard(req, res, next) {
-  const apiKey   = req.headers['x-api-key']   || '';
-  const adminPw  = req.headers['x-admin-pw']  || '';
+  const apiKey  = req.headers['x-api-key']  || '';
+  const adminPw = req.headers['x-admin-pw'] || '';
   const validKey = process.env.INTERNAL_API_KEY || '';
-  const validHash= process.env.ADMIN_PW_HASH   || '';
 
-  if (validKey && apiKey  === validKey)  return next();
-  if (validHash && adminPw === validHash) return next();
-  // Geliştirme: her ikisi de ayarlı değilse izin ver (Railway'de mutlaka biri set edilmeli)
-  if (!validKey && !validHash) return next();
+  if (validKey && apiKey === validKey) return next();
+  if (ADMIN_PW_HASH && adminPw === ADMIN_PW_HASH) return next();
+  if (!validKey && !ADMIN_PW_HASH) return next();
 
   console.warn(`[YETKİSİZ] IP: ${req.ip}`);
   return res.status(401).json({ success:false, error:'Yetkisiz.' });
