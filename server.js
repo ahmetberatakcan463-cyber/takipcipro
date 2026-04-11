@@ -111,13 +111,18 @@ async function smmCall(params) {
   return data;
 }
 
-async function sendTelegramAlert(message) {
+async function sendTelegramAlert(message, inlineButtons) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
-    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      chat_id: TELEGRAM_CHAT_ID,
-      text: message,
-    }, { timeout: 10000 });
+    const payload = {
+      chat_id:    TELEGRAM_CHAT_ID,
+      text:       message,
+      parse_mode: 'HTML',
+    };
+    if (inlineButtons) {
+      payload.reply_markup = { inline_keyboard: inlineButtons };
+    }
+    await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, payload, { timeout: 10000 });
   } catch (e) {
     console.warn('[TELEGRAM] Bildirim gönderilemedi:', e.message);
   }
@@ -539,7 +544,7 @@ app.get('/api/admin/loglar', adminGuard, (req, res) => {
 
 /**
  * POST /api/siparis-olustur
- * Sipariş oluştur, SMM paneline ilet, IBAN bilgisi döndür.
+ * Sipariş oluştur (pending), Telegram'a bildirim gönder, IBAN döndür.
  */
 app.post('/api/siparis-olustur', siparisSiniri, async (req, res) => {
   const serviceId  = Number(req.body.serviceId);
@@ -566,30 +571,58 @@ app.post('/api/siparis-olustur', siparisSiniri, async (req, res) => {
     smmResponse: { orderId, buyerName, buyerEmail, buyerPhone, totalPrice },
   });
 
+  // Telegram bildirimi — Onayla butonu ile
+  const onayUrl = `https://takipcipro-production-6b77.up.railway.app/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
+  const msg = `🛒 <b>YENİ SİPARİŞ</b>\n\n` +
+    `👤 Müşteri: <b>${buyerName}</b>\n` +
+    `📱 Instagram: <b>@${username}</b>\n` +
+    `📦 Servis: <b>${servis.vitrinAd || servisId}</b>\n` +
+    `🔢 Adet: <b>${quantity.toLocaleString('tr-TR')}</b>\n` +
+    `💰 Tutar: <b>₺${totalPrice.toFixed(2)}</b>\n\n` +
+    `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
+    `⏳ IBAN ödemesi bekleniyor...`;
+
+  await sendTelegramAlert(msg, [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]);
+
+  return res.json({
+    success: true,
+    orderId,
+    totalPrice,
+    iban: { no:'TR22 0006 2000 5790 0006 6525 03', banka:'GARANTİ BBVA', alici:'HATİCE KARASU' },
+  });
+});
+
+/**
+ * GET /api/onayla/:mongoId?k=KEY
+ * Telegram butonuyla sipariş onayı — SMM'e gönderir.
+ */
+app.get('/api/onayla/:mongoId', async (req, res) => {
+  const key = req.query.k || '';
+  const INTERNAL_KEY = process.env.INTERNAL_API_KEY || 'TakipciPro2024!';
+  if (key !== INTERNAL_KEY)
+    return res.status(403).send('<h2>❌ Yetkisiz erişim.</h2>');
+
+  const order = await Order.findById(req.params.mongoId).catch(() => null);
+  if (!order) return res.status(404).send('<h2>❌ Sipariş bulunamadı.</h2>');
+  if (order.status === 'success')
+    return res.send('<h2>✅ Bu sipariş zaten onaylandı.</h2>');
+
   try {
-    const apiData = await smmCall({ action:'add', service:serviceId, link:username, quantity });
+    const apiData = await smmCall({ action:'add', service:order.serviceId, link:order.username, quantity:order.quantity });
 
     if (apiData.error || !apiData.order) {
       await Order.findByIdAndUpdate(order._id, { status:'error', error: apiData.error || 'SMM order ID yok' });
-      return res.status(502).json({ success:false, error: apiData.error || 'SMM paneli siparişi kabul etmedi.' });
+      await sendTelegramAlert(`❌ SMM Hatası!\nSipariş: ${order.smmResponse?.orderId}\nHata: ${apiData.error}`);
+      return res.status(502).send(`<h2>❌ SMM Hatası: ${apiData.error}</h2>`);
     }
 
     await Order.findByIdAndUpdate(order._id, { status:'success', smmOrderId:String(apiData.order), error:null });
-    console.log(`[SİPARİŞ] ✓ @${username} → SMM #${apiData.order} | ${orderId}`);
+    await sendTelegramAlert(`✅ Sipariş onaylandı!\n📦 @${order.username} → SMM #${apiData.order}\n💰 ₺${order.smmResponse?.totalPrice}`);
+    console.log(`[ONAYLA] ✓ @${order.username} → SMM #${apiData.order}`);
 
-    return res.json({
-      success:    true,
-      orderId,
-      totalPrice,
-      iban: {
-        no:     'TR22 0006 2000 5790 0006 6525 03',
-        banka:  'GARANTİ BBVA',
-        alici:  'HATİCE KARASU',
-      },
-    });
+    return res.send(`<h2 style="font-family:sans-serif;color:green;">✅ Sipariş onaylandı! @${order.username} → SMM #${apiData.order}</h2>`);
   } catch(e) {
-    await Order.findByIdAndUpdate(order._id, { status:'error', error:e.message });
-    return res.status(500).json({ success:false, error:'Sunucu hatası.' });
+    return res.status(500).send(`<h2>❌ Hata: ${e.message}</h2>`);
   }
 });
 
