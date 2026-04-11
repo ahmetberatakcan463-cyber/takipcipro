@@ -59,11 +59,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type','x-api-key','x-admin-pw'],
 }));
 
-// Genel rate limit — saatte 60 istek
-app.use('/api/', rateLimit({
-  windowMs: 60*60*1000, max: 60,
-  message: { success:false, error:'Çok fazla istek. 1 saat bekleyin.' },
-}));
+// Genel rate limit — yalnızca public rotalar (admin muaf)
+app.use('/api/', (req, res, next) => {
+  if (req.path.startsWith('/admin/')) return next(); // admin kendi auth'unu kullanır
+  return rateLimit({
+    windowMs: 15*60*1000, max: 100,
+    message: { success:false, error:'Çok fazla istek. Lütfen birkaç dakika bekleyin.' },
+  })(req, res, next);
+});
 
 // Sipariş endpointi — daha katı limit (saatte 10)
 const siparisSiniri = rateLimit({
@@ -372,6 +375,14 @@ app.put('/api/admin/servis/:servisId', adminGuard, async (req, res) => {
     await Service.updateMany({ servisId: { $ne: Number(servisId) } }, { populer:false });
   }
 
+  // Vitrine ekleniyorsa ve vitrinAd boşsa orijinalAd'ı otomatik kullan
+  if (guncelleme.vitrin === true && !guncelleme.vitrinAd) {
+    const mevcut = await Service.findOne({ servisId: Number(servisId) }).lean();
+    if (mevcut && !mevcut.vitrinAd && mevcut.orijinalAd) {
+      guncelleme.vitrinAd = mevcut.orijinalAd;
+    }
+  }
+
   const guncel = await Service.findOneAndUpdate(
     { servisId: Number(servisId) },
     { $set: guncelleme },
@@ -390,6 +401,19 @@ app.post('/api/admin/toplu-vitrin', adminGuard, async (req, res) => {
   const { servisIdler, vitrin } = req.body;
   if (!Array.isArray(servisIdler))
     return res.status(400).json({ success:false, error:'servisIdler dizi olmalı.' });
+
+  // Vitrine ekleniyor ve vitrinAd boş olan servisler için orijinalAd'ı otomatik ata
+  if (vitrin) {
+    const servisler = await Service.find({
+      servisId: { $in: servisIdler.map(Number) },
+      $or: [{ vitrinAd: { $exists: false } }, { vitrinAd: '' }, { vitrinAd: null }],
+    }).lean();
+    for (const s of servisler) {
+      if (s.orijinalAd) {
+        await Service.updateOne({ servisId: s.servisId }, { $set: { vitrinAd: s.orijinalAd } });
+      }
+    }
+  }
 
   const sonuc = await Service.updateMany(
     { servisId: { $in: servisIdler.map(Number) } },
