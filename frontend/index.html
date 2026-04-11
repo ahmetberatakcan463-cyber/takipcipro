@@ -496,13 +496,20 @@
         </div>
       </div>
 
-      <!-- Shopier Ödeme Butonu -->
-      <div style="background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
-          <i class="fa-solid fa-lock" style="color:var(--gold2);"></i>
-          Güvenli ödeme — Shopier altyapısı
+      <!-- Ödeme Yöntemi -->
+      <div style="background:rgba(201,162,39,.06);border:1px solid rgba(201,162,39,.2);border-radius:14px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;"><i class="fa-solid fa-building-columns" style="color:var(--gold2);margin-right:6px;"></i>Ödeme Yöntemi</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.8;">
+          <div><span style="color:var(--muted);">Banka:</span> <strong>GARANTİ BBVA</strong></div>
+          <div><span style="color:var(--muted);">Alıcı:</span> <strong>HATİCE KARASU</strong></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+            <span style="color:var(--muted);">IBAN:</span>
+            <strong style="font-family:monospace;font-size:13px;color:var(--gold2);">TR22 0006 2000 5790 0006 6525 03</strong>
+          </div>
         </div>
-        <div style="font-size:11px;color:var(--muted);">Kredi kartı, banka kartı, havale/EFT kabul edilir</div>
+        <div style="margin-top:10px;padding:8px 12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;font-size:12px;color:#f87171;">
+          <i class="fa-solid fa-circle-exclamation"></i> Sipariş verdikten sonra açıklama kısmına <strong>sipariş numaranızı</strong> yazarak havale yapınız.
+        </div>
       </div>
 
       <!-- Satış Sözleşmesi -->
@@ -514,20 +521,32 @@
       </div>
 
       <button class="submit-btn" id="submitBtn" onclick="submitOrder()">
-        <i class="fa-solid fa-credit-card"></i> Shopier ile Güvenli Öde
+        <i class="fa-solid fa-paper-plane"></i> Sipariş Ver
       </button>
     </div>
 
-    <!-- Success Screen -->
-    <div id="successScreen" style="display:none;">
-      <div class="success-screen">
-        <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
-        <h3>Siparişiniz Alındı!</h3>
-        <p>Takipçileriniz en kısa sürede hesabınıza gönderilecek.</p>
-        <div class="order-id-box" id="successOrderId"></div>
-        <p style="font-size:12px;color:var(--muted);margin-bottom:24px;">Bu ID'yi sipariş takip bölümünde kullanabilirsiniz.</p>
-        <button class="btn-gold" onclick="closeModal()"><i class="fa-solid fa-check"></i> Tamam</button>
+    <!-- IBAN Ekranı -->
+    <div id="ibanScreen" style="display:none;text-align:center;padding:8px 0;">
+      <div style="font-size:48px;margin-bottom:12px;">✅</div>
+      <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Oluşturuldu!</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">Lütfen aşağıdaki IBAN'a ödeme yapın.</p>
+
+      <div style="background:#1a1a1a;border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:20px;text-align:left;margin-bottom:16px;">
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;">
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Banka</span><strong>GARANTİ BBVA</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Alıcı</span><strong>HATİCE KARASU</strong></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--muted);">IBAN</span><strong style="font-family:monospace;color:var(--gold2);font-size:13px;">TR22 0006 2000 5790 0006 6525 03</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Tutar</span><strong id="ibanTutar" style="color:#22c55e;font-size:16px;"></strong></div>
+        </div>
       </div>
+
+      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:12px;margin-bottom:16px;">
+        <div style="font-size:12px;color:#f87171;margin-bottom:6px;"><i class="fa-solid fa-circle-exclamation"></i> Havale açıklamasına mutlaka şunu yazın:</div>
+        <div id="ibanAciklama" style="font-family:monospace;font-size:16px;font-weight:700;color:#fff;letter-spacing:1px;"></div>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);margin-bottom:20px;">Ödemeniz kontrol edildikten sonra servisiniz aktif edilecektir.</div>
+      <button class="btn-gold" onclick="closeModal()" style="width:100%;"><i class="fa-solid fa-check"></i> Tamam</button>
     </div>
   </div>
 </div>
@@ -798,7 +817,7 @@
     updateSummaryPrice();
 
     document.getElementById('orderForm').style.display = 'block';
-    document.getElementById('successScreen').style.display = 'none';
+    document.getElementById('ibanScreen').style.display = 'none';
     document.getElementById('orderModal').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -881,50 +900,42 @@
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Ödeme hazırlanıyor...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sipariş oluşturuluyor...';
 
     try {
       const qty = Number(document.getElementById('quantityInput')?.value || currentPkg.amount);
 
-      const res = await fetch(`${ORDER_API_BASE}/api/shopier-baslat`, {
+      const res = await fetch(`${BACKEND_URL}/api/siparis-olustur`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serviceId:   Number(currentPkg.id),
-          username:    link,
-          quantity:    qty,
+          serviceId:  Number(currentPkg.id),
+          username:   link,
+          quantity:   qty,
           buyerName,
-          buyerEmail:  email,
+          buyerEmail: email,
           buyerPhone,
         }),
       });
       const data = await res.json();
 
-      if (!data.success || !data.checkoutUrl) {
-        throw new Error(data.error || 'Ödeme linki alınamadı.');
-      }
+      if (!data.success) throw new Error(data.error || 'Sipariş oluşturulamadı.');
 
-      // Sipariş ID'yi localStorage'a kaydet
+      // localStorage'a kaydet
       const orders = JSON.parse(localStorage.getItem('tp_orders') || '[]');
-      orders.push({
-        id:       data.orderId,
-        pkg:      currentPkg.name,
-        amount:   qty,
-        servisId: currentPkg.id,
-        link,
-        email,
-        status:   'pending',
-        date:     new Date().toISOString(),
-      });
+      orders.push({ id: data.orderId, pkg: currentPkg.name, amount: qty, servisId: currentPkg.id, link, email, status: 'pending', date: new Date().toISOString() });
       localStorage.setItem('tp_orders', JSON.stringify(orders));
 
-      // Shopier ödeme sayfasına yönlendir
-      window.location.href = data.checkoutUrl;
+      // IBAN ekranını göster
+      document.getElementById('orderForm').style.display = 'none';
+      document.getElementById('ibanScreen').style.display = 'block';
+      document.getElementById('ibanTutar').textContent = `₺${Number(data.totalPrice).toLocaleString('tr-TR', {minimumFractionDigits:2})}`;
+      document.getElementById('ibanAciklama').textContent = data.orderId;
 
     } catch (err) {
       alert(err.message || 'Bir hata oluştu, tekrar deneyin.');
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-solid fa-credit-card"></i> Shopier ile Güvenli Öde';
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Sipariş Ver';
     }
   }
 
