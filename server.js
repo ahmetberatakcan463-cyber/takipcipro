@@ -23,7 +23,7 @@ const Order      = require('./models/Order');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/takipcipro';
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8543277332:AAGAKVT0P_WNIk1r1WXVHZaSWvUi6nrTATY7';
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8742741686:AAEelzeJrC9QRD3p8H8L7RAR9KekmF2Cnbs';
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1951697589';
 
 /* ─────────────────────────────────────────────────────
