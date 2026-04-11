@@ -59,14 +59,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type','x-api-key','x-admin-pw'],
 }));
 
-// Genel rate limit — yalnızca public rotalar (admin muaf)
-app.use('/api/', (req, res, next) => {
-  if (req.path.startsWith('/admin/')) return next(); // admin kendi auth'unu kullanır
-  return rateLimit({
-    windowMs: 15*60*1000, max: 100,
-    message: { success:false, error:'Çok fazla istek. Lütfen birkaç dakika bekleyin.' },
-  })(req, res, next);
-});
+// Genel rate limit — admin rotaları otomatik atlanır
+app.use('/api/', rateLimit({
+  windowMs: 15*60*1000, max: 200,
+  skip: (req) => req.path.startsWith('/admin/'),
+  message: { success:false, error:'Çok fazla istek. Lütfen birkaç dakika bekleyin.' },
+}));
 
 // Sipariş endpointi — daha katı limit (saatte 10)
 const siparisSiniri = rateLimit({
