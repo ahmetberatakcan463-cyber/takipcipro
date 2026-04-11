@@ -766,17 +766,16 @@
       return;
     }
 
-    const salePricePerK = calculateSalePrice(service.price);
     currentPkg.id = service.id;
     currentPkg.name = service.name;
     currentPkg.amount = service.min;
-    currentPkg.pricePerThousand = salePricePerK;
-    currentPkg.price = salePricePerK * service.min / 1000;
+    currentPkg.pricePerThousand = service.price;
+    currentPkg.price = service.price * service.min / 1000;
 
     document.getElementById('modalPkgName').textContent = service.name;
     document.getElementById('modalPkgAmount').textContent = `${service.min} - ${service.max}`;
     document.getElementById('selectedProductMeta').textContent =
-      `Servis ID: ${service.id} | Alış: ₺${formatTL(service.price)}/1000 | Satış: ₺${formatTL(salePricePerK)}/1000 | Min: ${service.min} | Max: ${service.max}`;
+      `Servis ID: ${service.id} | ₺${formatTL(service.price)}/1000 | Min: ${service.min} | Max: ${service.max}`;
 
     // Adet input'u göster ve ayarla
     const qInput = document.getElementById('quantityInput');
@@ -792,18 +791,15 @@
     onQuantityChange();
   }
 
+  const BACKEND_URL = 'https://takipcipro-production-6b77.up.railway.app';
+
   async function loadServicesToSelect() {
     const select = document.getElementById('productSelect');
     try {
-      let res = await fetch('../services.json');
-      if (!res.ok) {
-        res = await fetch('/services.json');
-      }
-      if (!res.ok) {
-        throw new Error('services.json okunamadı');
-      }
+      const res = await fetch(`${BACKEND_URL}/api/vitrin`);
+      if (!res.ok) throw new Error('API yanıt vermedi');
       const data = await res.json();
-      catalogServices = Array.isArray(data) ? data : [];
+      catalogServices = (data.success && Array.isArray(data.data)) ? data.data : [];
       renderServiceCards();
 
       if (!catalogServices.length) {
@@ -812,11 +808,9 @@
       }
 
       select.innerHTML = '<option value="">Ürün Seçiniz</option>' +
-        catalogServices
-          .map(s => `<option value="${s.id}">${s.name}</option>`)
-          .join('');
+        catalogServices.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     } catch (err) {
-      console.warn('services.json yüklenemedi, fallback kullanılıyor:', err);
+      console.warn('API yüklenemedi, fallback kullanılıyor:', err);
       catalogServices = fallbackServices;
       renderServiceCards();
       select.innerHTML = '<option value="">Ürün Seçiniz</option>' +
@@ -838,8 +832,7 @@
         <div class="ilan-card">
           <div class="ilan-badge">#${service.id}</div>
           <h3 class="ilan-title">${service.name}</h3>
-          <div class="ilan-meta"><strong>1000 Adet Satış Fiyatı:</strong> ₺${formatTL(calculateSalePrice(service.price))}</div>
-          <div class="ilan-meta" style="opacity:.8;"><strong>Tedarik Fiyatı:</strong> ₺${formatTL(service.price)}</div>
+          <div class="ilan-meta"><strong>Fiyat:</strong> ₺${formatTL(service.price)} / 1000 adet</div>
           <div class="ilan-meta"><strong>Minimum Sipariş:</strong> ${service.min}</div>
           <button class="ilan-buy-btn" onclick="buyService(${service.id})">
             <i class="fa-solid fa-cart-shopping"></i> Satın Al
@@ -860,7 +853,7 @@
       id: service.id,
       name: service.name,
       amount: `${service.min} - ${service.max}`,
-      price: calculateSalePrice(service.price),
+      price: service.price,
     });
 
     const select = document.getElementById('productSelect');

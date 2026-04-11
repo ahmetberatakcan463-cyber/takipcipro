@@ -38,6 +38,7 @@ mongoose.connection.on('disconnected', () => console.warn('[DB] MongoDB bağlant
 /* ─────────────────────────────────────────────────────
    MIDDLEWARE
 ───────────────────────────────────────────────────── */
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(express.json({ limit: '50kb' }));
 
@@ -145,7 +146,9 @@ app.get('/api/vitrin', async (req, res) => {
       id:        s.servisId,
       name:      s.vitrinAd   || s.vitrinAd,
       emoji:     s.emoji      || '⭐',
-      amount:    s.min,        // Minimum miktar paket boyutu olarak
+      amount:    s.min,
+      min:       s.min,
+      max:       s.max,
       price:     s.musteriTL,
       oldPrice:  s.eskiFiyatTL > 0 ? s.eskiFiyatTL : null,
       delivery:  s.teslimat   || '15-30 dakika',
@@ -548,7 +551,7 @@ app.post('/api/shopier-baslat', siparisSiniri, async (req, res) => {
 
   try {
     const shopierRes = await axios.post(
-      'https://developer.shopier.com/api/v1/orders',
+      'https://developer.shopier.com/v1/orders',
       {
         currency:     'TRY',
         total_amount: totalPrice,
