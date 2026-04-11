@@ -567,8 +567,9 @@ app.post('/api/admin/sifre-degistir', adminGuard, (req, res) => {
 
 /**
  * POST /api/siparis-olustur
- * Sipariş oluştur, Telegram'a bildirim gönder.
- * Müşteriye ASLA IBAN gösterilmez — her zaman "bekleyin" döner.
+ * Sipariş oluştur, bakiye kontrolü yap.
+ * Bakiye yeterliyse IBAN döndür.
+ * Bakiye yetersizse "beklemede" döndür, Telegram'a uyarı gönder.
  */
 app.post('/api/siparis-olustur', siparisSiniri, async (req, res) => {
   const serviceId  = Number(req.body.serviceId);
@@ -604,20 +605,20 @@ app.post('/api/siparis-olustur', siparisSiniri, async (req, res) => {
     console.warn('[siparis-olustur] Bakiye sorgulanamadı:', balErr.message);
   }
 
-  const order = await Order.create({
-    serviceId, username, quantity,
-    status: 'pending',
-    error:  bakiyeYeterli ? 'Sipariş alındı, onay bekleniyor' : 'Bakiye yetersiz — müşteri bekletiliyor',
-    smmResponse: { orderId, buyerName, buyerEmail, buyerPhone, totalPrice },
-  });
-
   if (!bakiyeYeterli) {
-    // Bakiye yetersiz — sana özel uyarı
+    // Bakiye yetersiz — siparişi bekletmeye al
+    await Order.create({
+      serviceId, username, quantity,
+      status: 'beklemede',
+      error:  'Bakiye yetersiz — müşteri bekletiliyor',
+      smmResponse: { orderId, buyerName, buyerEmail, buyerPhone, totalPrice },
+    });
+
     const warnMsg =
 `🚨 BAKİYE YETERSİZ — BAKİYE YÜKLEYİN!
 
 Müşteri sipariş verdi ancak SMM panel bakiyeniz yetersiz.
-Lütfen bakiyenizi yükleyin, sipariş bekletiliyor.
+Bakiyenizi yükleyin — müşteri otomatik bilgilendirilecek.
 
 👤 Müşteri: ${buyerName}
 📱 Instagram: @${username}
@@ -629,27 +630,112 @@ Lütfen bakiyenizi yükleyin, sipariş bekletiliyor.
 
 🔑 Sipariş No: ${orderId}`;
     await sendTelegramAlert(warnMsg);
-  } else {
-    // Bakiye yeterli — onayla butonu ile normal bildirim
-    const onayUrl = `https://takipcipro-production-6b77.up.railway.app/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
-    const msg = `🛒 <b>YENİ SİPARİŞ</b>\n\n` +
-      `👤 Müşteri: <b>${buyerName}</b>\n` +
-      `📱 Instagram: <b>@${username}</b>\n` +
-      `📦 Servis: <b>${servis.vitrinAd || serviceId}</b>\n` +
-      `🔢 Adet: <b>${quantity.toLocaleString('tr-TR')}</b>\n` +
-      `💰 Tutar: <b>₺${totalPrice.toFixed(2)}</b>\n\n` +
-      `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
-      `⏳ Müşteri onayınızı bekliyor...`;
-    await sendTelegramAlert(msg, [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]);
+
+    return res.json({
+      success: true,
+      status:  'beklemede',
+      orderId,
+    });
   }
 
-  // Müşteriye ASLA IBAN dönme — her zaman "bekleyin" mesajı
-  return res.json({
-    success: true,
-    status:  'beklemede',
-    orderId,
-    message: 'Siparişiniz alındı. Lütfen bekleyin.',
+  // Bakiye yeterli — siparişi iban_hazir olarak kaydet, IBAN döndür
+  const order = await Order.create({
+    serviceId, username, quantity,
+    status: 'iban_hazir',
+    error:  'IBAN ödemesi bekleniyor',
+    smmResponse: { orderId, buyerName, buyerEmail, buyerPhone, totalPrice },
   });
+
+  const onayUrl = `https://takipcipro-production-6b77.up.railway.app/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
+  const msg = `🛒 <b>YENİ SİPARİŞ</b>\n\n` +
+    `👤 Müşteri: <b>${buyerName}</b>\n` +
+    `📱 Instagram: <b>@${username}</b>\n` +
+    `📦 Servis: <b>${servis.vitrinAd || serviceId}</b>\n` +
+    `🔢 Adet: <b>${quantity.toLocaleString('tr-TR')}</b>\n` +
+    `💰 Tutar: <b>₺${totalPrice.toFixed(2)}</b>\n\n` +
+    `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
+    `⏳ Müşteri IBAN ödemesini yapıyor...`;
+  await sendTelegramAlert(msg, [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]);
+
+  return res.json({
+    success:    true,
+    status:     'iban_hazir',
+    orderId,
+    totalPrice,
+    iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
+  });
+});
+
+/**
+ * GET /api/siparis-kontrol/:orderId
+ * Müşteri "bekleyin" ekranındayken bu endpoint'i polling yapar.
+ * Bakiye yeterliyse siparişi iban_hazir'a alır ve IBAN döndürür.
+ */
+app.get('/api/siparis-kontrol/:orderId', async (req, res) => {
+  const orderId = clean(req.params.orderId, 50);
+  const order   = await Order.findOne({ 'smmResponse.orderId': orderId }).lean();
+  if (!order) return res.status(404).json({ success:false, error:'Sipariş bulunamadı.' });
+
+  // Zaten iban_hazir durumundaysa tekrar IBAN döndür
+  if (order.status === 'iban_hazir') {
+    return res.json({
+      success:    true,
+      status:     'iban_hazir',
+      totalPrice: order.smmResponse?.totalPrice,
+      orderId,
+      iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
+    });
+  }
+
+  // Tamamlandıysa bildir
+  if (order.status === 'success') {
+    return res.json({ success:true, status:'tamamlandi', orderId });
+  }
+
+  // Beklemedeyse bakiyeyi tekrar kontrol et
+  if (order.status === 'beklemede') {
+    try {
+      const balanceData = await smmCall({ action: 'balance' });
+      const smmBalance  = parseFloat(balanceData.balance || '0');
+      const servis      = await Service.findOne({ servisId: order.serviceId }).lean();
+      const serviceRate = parseFloat(servis?.fiyat || '0');
+      const estimatedCost = (serviceRate / 1000) * order.quantity;
+
+      if (Number.isFinite(smmBalance) && Number.isFinite(estimatedCost) && smmBalance >= estimatedCost) {
+        // Bakiye yeter — siparişi iban_hazir'a al
+        await Order.findByIdAndUpdate(order._id, {
+          status: 'iban_hazir',
+          error:  'IBAN ödemesi bekleniyor',
+        });
+
+        const buyerName = order.smmResponse?.buyerName || 'Müşteri';
+        const onayUrl   = `https://takipcipro-production-6b77.up.railway.app/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
+        await sendTelegramAlert(
+          `✅ <b>BAKİYE YÜKLENDİ — SİPARİŞ HAZIR!</b>\n\n` +
+          `👤 Müşteri: <b>${buyerName}</b>\n` +
+          `📱 Instagram: <b>@${order.username}</b>\n` +
+          `🔢 Adet: <b>${order.quantity.toLocaleString('tr-TR')}</b>\n` +
+          `💰 Tutar: <b>₺${order.smmResponse?.totalPrice?.toFixed(2)}</b>\n\n` +
+          `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
+          `⏳ Müşteri IBAN ekranına yönlendirildi.`,
+          [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]
+        );
+
+        return res.json({
+          success:    true,
+          status:     'iban_hazir',
+          totalPrice: order.smmResponse?.totalPrice,
+          orderId,
+          iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
+        });
+      }
+    } catch (e) {
+      console.warn('[siparis-kontrol] Bakiye kontrolü hatası:', e.message);
+    }
+    return res.json({ success:true, status:'beklemede', orderId });
+  }
+
+  return res.json({ success:true, status: order.status, orderId });
 });
 
 /**

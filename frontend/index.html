@@ -843,12 +843,42 @@
     document.body.style.overflow = 'hidden';
   }
 
+  let _pollingTimer = null;
+
   function closeModal() {
     document.getElementById('orderModal').classList.remove('open');
     document.body.style.overflow = '';
+    stopOrderPolling();
     document.getElementById('beklemdeScreen').style.display = 'none';
     document.getElementById('ibanScreen').style.display = 'none';
     document.getElementById('orderForm').style.display = 'block';
+    const btn = document.getElementById('submitBtn');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Sipariş Ver'; }
+  }
+
+  function showIbanScreen(data) {
+    document.getElementById('beklemdeScreen').style.display = 'none';
+    document.getElementById('ibanScreen').style.display = 'block';
+    document.getElementById('ibanTutar').textContent    = `₺${Number(data.totalPrice).toLocaleString('tr-TR', {minimumFractionDigits:2})}`;
+    document.getElementById('ibanAciklama').textContent = data.orderId;
+  }
+
+  function startOrderPolling(orderId) {
+    stopOrderPolling();
+    _pollingTimer = setInterval(async () => {
+      try {
+        const r    = await fetch(`${BACKEND_URL}/api/siparis-kontrol/${orderId}`);
+        const data = await r.json();
+        if (data.status === 'iban_hazir') {
+          stopOrderPolling();
+          showIbanScreen(data);
+        }
+      } catch (_) {}
+    }, 15000); // 15 saniyede bir kontrol
+  }
+
+  function stopOrderPolling() {
+    if (_pollingTimer) { clearInterval(_pollingTimer); _pollingTimer = null; }
   }
 
   document.getElementById('orderModal').addEventListener('click', function(e) {
@@ -950,9 +980,16 @@
       orders.push({ id: data.orderId, pkg: currentPkg.name, amount: qty, servisId: currentPkg.id, link, email, status: 'pending', date: new Date().toISOString() });
       localStorage.setItem('tp_orders', JSON.stringify(orders));
 
-      // Her zaman bekletme ekranı göster — IBAN asla gösterilmez
       document.getElementById('orderForm').style.display = 'none';
-      document.getElementById('beklemdeScreen').style.display = 'block';
+
+      if (data.status === 'iban_hazir') {
+        // Bakiye yeterliydi — direkt IBAN göster
+        showIbanScreen(data);
+      } else {
+        // Bakiye yetersiz — bekletme ekranı aç ve polling başlat
+        document.getElementById('beklemdeScreen').style.display = 'block';
+        startOrderPolling(data.orderId);
+      }
 
     } catch (err) {
       alert(err.message || 'Bir hata oluştu, tekrar deneyin.');
