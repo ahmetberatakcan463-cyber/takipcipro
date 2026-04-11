@@ -480,9 +480,15 @@
       <!-- Alıcı Bilgileri -->
       <div style="margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">Alıcı Bilgileri</div>
-        <div class="form-group">
-          <label>Ad Soyad</label>
-          <input type="text" id="buyerName" placeholder="Ad Soyad">
+        <div style="display:flex;gap:10px;">
+          <div class="form-group" style="flex:1;">
+            <label>Ad <span style="color:#e05;">*</span></label>
+            <input type="text" id="buyerFirstName" placeholder="Adınız">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Soyad <span style="color:#e05;">*</span></label>
+            <input type="text" id="buyerLastName" placeholder="Soyadınız">
+          </div>
         </div>
         <div class="form-group">
           <label>Telefon</label>
@@ -497,6 +503,14 @@
           Güvenli ödeme — Shopier altyapısı
         </div>
         <div style="font-size:11px;color:var(--muted);">Kredi kartı, banka kartı, havale/EFT kabul edilir</div>
+      </div>
+
+      <!-- Satış Sözleşmesi -->
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;padding:12px;background:rgba(201,162,39,.05);border:1px solid rgba(201,162,39,.2);border-radius:12px;">
+        <input type="checkbox" id="sozlesmeCheck" style="margin-top:3px;width:16px;height:16px;accent-color:var(--gold2);flex-shrink:0;cursor:pointer;">
+        <label for="sozlesmeCheck" style="font-size:13px;color:var(--muted);cursor:pointer;line-height:1.5;">
+          <a onclick="openSozlesme()" style="color:var(--gold2);text-decoration:underline;cursor:pointer;">Satış Sözleşmesi</a>'ni okudum ve kabul ediyorum. <span style="color:#e05;">*</span>
+        </label>
       </div>
 
       <button class="submit-btn" id="submitBtn" onclick="submitOrder()">
@@ -515,6 +529,50 @@
         <button class="btn-gold" onclick="closeModal()"><i class="fa-solid fa-check"></i> Tamam</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ========== SATIŞ SÖZLEŞMESİ MODALI ========== -->
+<div id="sozlesmeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;overflow-y:auto;padding:20px;box-sizing:border-box;">
+  <div style="max-width:640px;margin:40px auto;background:#111;border:1px solid rgba(201,162,39,.25);border-radius:18px;padding:32px;position:relative;">
+    <button onclick="closeSozlesme()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    <h2 style="color:var(--gold2);margin:0 0 6px;font-size:20px;">Satış Sözleşmesi</h2>
+    <p style="color:var(--muted);font-size:12px;margin:0 0 24px;">Son güncelleme: Nisan 2025</p>
+
+    <div style="color:var(--text);font-size:14px;line-height:1.8;display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <strong style="color:var(--gold2);">1. Taraflar</strong><br>
+        Bu sözleşme, TakipçiPro platformu ("Satıcı") ile hizmeti satın alan kullanıcı ("Alıcı") arasında düzenlenmektedir.
+      </div>
+      <div>
+        <strong style="color:var(--gold2);">2. Hizmet Konusu</strong><br>
+        Satıcı; Instagram başta olmak üzere sosyal medya platformları için takipçi, beğeni ve izlenme hizmeti sunmaktadır. Hizmetler üçüncü taraf SMM paneli aracılığıyla sağlanmaktadır.
+      </div>
+      <div>
+        <strong style="color:var(--gold2);">3. Teslimat</strong><br>
+        Siparişler ödeme onayından itibaren genellikle 5–30 dakika içinde başlar. Yoğunluk durumuna göre bu süre uzayabilir. Alıcı, teslimat sürelerinin garantili olmadığını kabul eder.
+      </div>
+      <div>
+        <strong style="color:var(--gold2);">4. İptal ve İade</strong><br>
+        Sipariş işleme alındıktan sonra iptal talepleri kabul edilmez. Kısmi veya tam teslimat gerçekleşmeyen durumlarda destek hattına başvurulabilir; değerlendirme Satıcı'nın takdirindedir.
+      </div>
+      <div>
+        <strong style="color:var(--gold2);">5. Sorumluluk Reddi</strong><br>
+        Alıcı, satın aldığı hizmetin ilgili sosyal medya platformunun kullanım koşullarıyla çelişebileceğini bilmekte ve bu riski kabul etmektedir. Satıcı, hesap kısıtlama veya askıya alma durumlarından sorumlu tutulamaz.
+      </div>
+      <div>
+        <strong style="color:var(--gold2);">6. Gizlilik</strong><br>
+        Alıcıya ait kişisel bilgiler (ad, e-posta, telefon) yalnızca sipariş işleme amacıyla kullanılır; üçüncü taraflarla paylaşılmaz.
+      </div>
+      <div>
+        <strong style="color:var(--gold2);">7. Uyuşmazlık</strong><br>
+        Taraflar arasında doğabilecek uyuşmazlıklarda Türkiye Cumhuriyeti yasaları uygulanır.
+      </div>
+    </div>
+
+    <button onclick="acceptSozlesme()" style="margin-top:28px;width:100%;padding:14px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:12px;color:#000;font-weight:700;font-size:15px;cursor:pointer;">
+      <i class="fa-solid fa-check"></i> Okudum, Kabul Ediyorum
+    </button>
   </div>
 </div>
 
@@ -686,6 +744,19 @@
   }
 
   // ---- Tab Switch ----
+  function openSozlesme() {
+    document.getElementById('sozlesmeModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSozlesme() {
+    document.getElementById('sozlesmeModal').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+  function acceptSozlesme() {
+    document.getElementById('sozlesmeCheck').checked = true;
+    closeSozlesme();
+  }
+
   function switchTab(tab) {
     ['takipci','begeni','izlenme'].forEach(t => {
       document.getElementById('pkgs-'+t).style.display = t === tab ? 'grid' : 'none';
@@ -713,8 +784,10 @@
     document.getElementById('quantityPrice').textContent = '';
     document.getElementById('modalLink').value = '';
     document.getElementById('modalEmail').value = '';
-    document.getElementById('buyerName').value = '';
+    document.getElementById('buyerFirstName').value = '';
+    document.getElementById('buyerLastName').value = '';
     document.getElementById('buyerPhone').value = '';
+    document.getElementById('sozlesmeCheck').checked = false;
 
     document.getElementById('modalPkgName').textContent = pkg.name;
     document.getElementById('modalPkgAmount').textContent = pkg.amount;
@@ -786,16 +859,21 @@
 
   // ---- Submit ----
   async function submitOrder() {
-    const link       = document.getElementById('modalLink').value.trim();
-    const email      = document.getElementById('modalEmail').value.trim();
-    const buyerName  = document.getElementById('buyerName').value.trim();
-    const buyerPhone = document.getElementById('buyerPhone').value.trim();
+    const link          = document.getElementById('modalLink').value.trim();
+    const email         = document.getElementById('modalEmail').value.trim();
+    const firstName     = document.getElementById('buyerFirstName').value.trim();
+    const lastName      = document.getElementById('buyerLastName').value.trim();
+    const buyerPhone    = document.getElementById('buyerPhone').value.trim();
+    const sozlesmeOnay  = document.getElementById('sozlesmeCheck').checked;
+    const buyerName     = firstName && lastName ? `${firstName} ${lastName}` : '';
 
     if (!selectedService) { alert('Lütfen "Ürün Seçiniz" alanından ürün seçiniz.'); return; }
     if (!link)  { alert('Lütfen Instagram kullanıcı adı giriniz.'); return; }
     if (!email || !email.includes('@')) { alert('Lütfen geçerli bir e-posta adresi giriniz.'); return; }
-    if (!buyerName)  { alert('Lütfen ad soyad giriniz.'); return; }
+    if (!firstName) { alert('Lütfen adınızı giriniz.'); return; }
+    if (!lastName)  { alert('Lütfen soyadınızı giriniz.'); return; }
     if (!buyerPhone) { alert('Lütfen telefon numarası giriniz.'); return; }
+    if (!sozlesmeOnay) { alert('Lütfen Satış Sözleşmesini okuyup onaylayınız.'); return; }
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
