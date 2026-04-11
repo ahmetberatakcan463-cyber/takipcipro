@@ -81,8 +81,9 @@ function adminGuard(req, res, next) {
   const key  = req.headers['x-api-key']  || '';
   const hash = req.headers['x-admin-pw'] || '';
   const validKey  = key  === process.env.INTERNAL_API_KEY;
+  const config = readAdminConfig();
   const validHash = hash !== '' && (
-    hash === (process.env.ADMIN_HASH || '063d8f274f89f087484a314edea68784d17bf3aead2f842fb1730788482a6d73') ||
+    hash === (config.adminHash || process.env.ADMIN_HASH || '063d8f274f89f087484a314edea68784d17bf3aead2f842fb1730788482a6d73') ||
     hash === '9424db21e37428d50fdcc23149c1a66b87f8f9154c1fcdcf3802ef8146288a70'
   );
   if (!validKey && !validHash) {
@@ -132,6 +133,11 @@ async function sendTelegramAlert(message, inlineButtons) {
 const LOG_FILE = path.join(__dirname, 'orders_log.json');
 function readLog()   { try { return JSON.parse(fs.readFileSync(LOG_FILE,'utf8')); } catch(e){ return []; } }
 function writeLog(d) { try { fs.writeFileSync(LOG_FILE, JSON.stringify(d.slice(0,500), null,2)); } catch(e){} }
+
+// Admin config dosyası (şifre hash vb.)
+const ADMIN_CONFIG_FILE = path.join(__dirname, 'admin_config.json');
+function readAdminConfig()   { try { return JSON.parse(fs.readFileSync(ADMIN_CONFIG_FILE,'utf8')); } catch(e){ return {}; } }
+function writeAdminConfig(d) { try { fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(d, null,2)); } catch(e){} }
 
 /* ─────────────────────────────────────────────────────
    PUBLIC ENDPOINTLERİ (Netlify sitesi için)
@@ -205,14 +211,15 @@ app.post('/api/siparis-ver', siparisSiniri, async (req, res) => {
 
     if (Number.isFinite(smmBalance) && Number.isFinite(estimatedCost) && smmBalance < estimatedCost) {
       const warnMsg =
-`⚠️ BAKIYE YETERSIZ!
-Musteri siparis bekliyor.
+`⚠️ BAKİYENİZE PARA ATIN — MÜŞTERİ İŞLEMİ BEKLETİLİYOR!
+
 Servis ID: ${serviceId}
-Hedef: ${username}
-Miktar: ${quantity}
-Tahmini Maliyet: ${estimatedCost.toFixed(4)}
-Mevcut Bakiye: ${smmBalance.toFixed(4)}
-Lutfen hesabiniza bakiye yukleyin.`;
+Hedef: @${username}
+Adet: ${quantity}
+Tahmini Maliyet: $${estimatedCost.toFixed(4)}
+Mevcut Bakiye: $${smmBalance.toFixed(4)}
+
+Bakiyenizi yükledikten sonra sipariş otomatik işlenecektir.`;
 
       await sendTelegramAlert(warnMsg);
 
@@ -538,6 +545,22 @@ app.get('/api/admin/loglar', adminGuard, (req, res) => {
   res.json({ success:true, count:loglar.length, data:loglar.slice(0,200) });
 });
 
+/**
+ * POST /api/admin/sifre-degistir
+ * Admin şifresini değiştir. Body: { yeniHash } (SHA-256 hex)
+ */
+app.post('/api/admin/sifre-degistir', adminGuard, (req, res) => {
+  const { yeniHash } = req.body;
+  if (!yeniHash || typeof yeniHash !== 'string' || yeniHash.length !== 64) {
+    return res.status(400).json({ success:false, error:'Geçersiz hash formatı.' });
+  }
+  const config = readAdminConfig();
+  config.adminHash = yeniHash;
+  writeAdminConfig(config);
+  console.log('[ADMİN] Şifre güncellendi.');
+  res.json({ success:true, message:'Şifre başarıyla güncellendi.' });
+});
+
 /* ─────────────────────────────────────────────────────
    SHOPİER ENTEGRASYONu
 ───────────────────────────────────────────────────── */
@@ -559,6 +582,46 @@ app.post('/api/siparis-olustur', siparisSiniri, async (req, res) => {
 
   const servis = await Service.findOne({ servisId: serviceId, aktif: true });
   if (!servis) return res.status(400).json({ success:false, error:'Servis aktif değil.' });
+
+  // Bakiye kontrolü — yetersizse IBAN gösterme, beklet
+  try {
+    const balanceData  = await smmCall({ action: 'balance' });
+    const smmBalance   = parseFloat(balanceData.balance || '0');
+    const serviceRate  = parseFloat(servis.fiyat || '0');
+    const estimatedCost = (serviceRate / 1000) * quantity;
+
+    if (Number.isFinite(smmBalance) && Number.isFinite(estimatedCost) && smmBalance < estimatedCost) {
+      const orderId = 'TP-' + Date.now();
+      await Order.create({
+        serviceId, username, quantity,
+        status: 'pending',
+        error:  'Bakiye yetersiz — müşteri bekletiliyor',
+        smmResponse: { orderId, buyerName, buyerEmail, buyerPhone, balance: smmBalance, estimatedCost },
+      });
+
+      const warnMsg =
+`⚠️ BAKİYENİZE PARA ATIN — MÜŞTERİ İŞLEMİ BEKLETİLİYOR!
+
+Müşteri: ${buyerName}
+Instagram: @${username}
+Servis: ${servis.vitrinAd || serviceId}
+Adet: ${quantity}
+Tahmini Maliyet: $${estimatedCost.toFixed(4)}
+Mevcut Bakiye: $${smmBalance.toFixed(4)}
+
+Bakiyenizi yükleyince müşteriye IBAN gönderilecek.`;
+      await sendTelegramAlert(warnMsg);
+
+      return res.json({
+        success: false,
+        status:  'bakiye_bekleniyor',
+        orderId,
+        message: 'Siparişiniz alındı ve işleme konuldu. En kısa sürede işleminiz tamamlanacak.',
+      });
+    }
+  } catch (balErr) {
+    console.warn('[siparis-olustur] Bakiye kontrolü atlandı:', balErr.message);
+  }
 
   const pricePerK  = servis.musteriTL || 0;
   const totalPrice = parseFloat((pricePerK * quantity / 1000).toFixed(2));

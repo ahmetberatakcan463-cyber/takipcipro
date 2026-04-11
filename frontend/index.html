@@ -9,6 +9,12 @@
 </head>
 <body>
 
+<!-- ========== DUYURU BANDI ========== -->
+<div style="background:rgba(245,158,11,.13);border-bottom:1px solid rgba(245,158,11,.35);padding:9px 20px;text-align:center;font-size:13px;font-weight:600;color:#f59e0b;position:relative;z-index:100;">
+  <i class="fa-solid fa-triangle-exclamation"></i>&nbsp;
+  <strong>Önemli:</strong> Tüm platformlarda hesabınızın <strong>herkese açık</strong> olması zorunludur.
+</div>
+
 <!-- ========== TICKER BAR ========== -->
 <div class="ticker-bar">
   <div class="ticker-track">
@@ -525,6 +531,17 @@
       </button>
     </div>
 
+    <!-- Bakiye Bekleme Ekranı -->
+    <div id="beklemdeScreen" style="display:none;text-align:center;padding:8px 0;">
+      <div style="font-size:48px;margin-bottom:12px;">⏳</div>
+      <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Alındı!</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">Siparişiniz işleme alındı ve en kısa sürede tamamlanacak. Herhangi bir ödeme yapmanıza gerek yoktur.</p>
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px;color:#f59e0b;">
+        <i class="fa-solid fa-circle-info"></i> İşleminiz hazır olduğunda servisiniz otomatik olarak aktif edilecektir.
+      </div>
+      <button class="btn-gold" onclick="closeModal()" style="width:100%;"><i class="fa-solid fa-check"></i> Tamam</button>
+    </div>
+
     <!-- IBAN Ekranı -->
     <div id="ibanScreen" style="display:none;text-align:center;padding:8px 0;">
       <div style="font-size:48px;margin-bottom:12px;">✅</div>
@@ -825,6 +842,9 @@
   function closeModal() {
     document.getElementById('orderModal').classList.remove('open');
     document.body.style.overflow = '';
+    document.getElementById('beklemdeScreen').style.display = 'none';
+    document.getElementById('ibanScreen').style.display = 'none';
+    document.getElementById('orderForm').style.display = 'block';
   }
 
   document.getElementById('orderModal').addEventListener('click', function(e) {
@@ -918,6 +938,16 @@
         }),
       });
       const data = await res.json();
+
+      // Bakiye yetersiz — IBAN gösterme, bekletme ekranı göster
+      if (data.status === 'bakiye_bekleniyor') {
+        const orders = JSON.parse(localStorage.getItem('tp_orders') || '[]');
+        orders.push({ id: data.orderId, pkg: currentPkg.name, amount: qty, servisId: currentPkg.id, link, email, status: 'pending', date: new Date().toISOString() });
+        localStorage.setItem('tp_orders', JSON.stringify(orders));
+        document.getElementById('orderForm').style.display = 'none';
+        document.getElementById('beklemdeScreen').style.display = 'block';
+        return;
+      }
 
       if (!data.success) throw new Error(data.error || 'Sipariş oluşturulamadı.');
 
