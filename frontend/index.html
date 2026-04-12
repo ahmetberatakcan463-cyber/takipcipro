@@ -452,7 +452,7 @@
       </div>
 
       <div class="form-group">
-        <label>Instagram Kullanıcı Adı veya Link</label>
+        <label>Kullanıcı Adı veya Gönderi Linki</label>
         <input type="text" id="modalLink" placeholder="@kullanici_adi veya gönderi linki">
       </div>
 
@@ -461,15 +461,6 @@
         <input type="email" id="modalEmail" placeholder="email@ornek.com">
       </div>
 
-      <!-- Discount Code -->
-      <div class="form-group">
-        <label>İndirim Kodu (Varsa)</label>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="discountCode" placeholder="Kodu girin..." style="margin-bottom:0;">
-          <button class="btn-outline" style="flex-shrink:0;padding:11px 16px;font-size:13px;" onclick="applyDiscount()">Uygula</button>
-        </div>
-        <div id="discountMsg" style="font-size:12px;margin-top:6px;"></div>
-      </div>
 
       <!-- Price Summary -->
       <div class="price-summary">
@@ -477,10 +468,7 @@
           <span class="price-label">Paket Fiyatı</span>
           <span class="price-val" id="summaryOriginal">₺0</span>
         </div>
-        <div class="price-row" id="discountRow" style="display:none;">
-          <span class="price-label">İndirim</span>
-          <span class="price-val" style="color:#22c55e;" id="summaryDiscount">-₺0</span>
-        </div>
+
         <div class="price-row">
           <span class="price-label">Toplam</span>
           <span class="price-val" id="summaryTotal">₺0</span>
@@ -523,7 +511,7 @@
     <!-- Bakiye Bekleme Ekranı -->
     <div id="beklemdeScreen" style="display:none;text-align:center;padding:8px 0;">
       <div style="font-size:48px;margin-bottom:12px;">⏳</div>
-      <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Alındı!</h3>
+      <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Oluşturuluyor...</h3>
       <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">Siparişiniz işleme alındı ve en kısa sürede tamamlanacak. Herhangi bir ödeme yapmanıza gerek yoktur.</p>
       <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px;color:#f59e0b;">
         <i class="fa-solid fa-circle-info"></i> İşleminiz hazır olduğunda servisiniz otomatik olarak aktif edilecektir.
@@ -597,6 +585,10 @@
         <strong style="color:var(--gold2);">8. Uyuşmazlık</strong><br>
         Taraflar arasında doğabilecek uyuşmazlıklarda Türkiye Cumhuriyeti yasaları uygulanır.
       </div>
+      <div>
+        <strong style="color:var(--gold2);">9. Sipariş Sırası ve Yoğunluk</strong><br>
+        Arka arkaya sipariş vermeyiniz. Servis yoğun olduğu zamanlarda işleme başlama hızı değişmektedir. Verdiğiniz sipariş sistemde tamamlanmadan aynı linke 2. siparişi vermeyiniz.
+      </div>
     </div>
 
     <button onclick="acceptSozlesme()" style="margin-top:28px;width:100%;padding:14px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;border-radius:12px;color:#000;font-weight:700;font-size:15px;cursor:pointer;">
@@ -608,7 +600,6 @@
 <script>
   // ---- State ----
   let currentPkg = {};
-  let discountApplied = 0;
   let catalogServices = [];
   let selectedService = null;
   const ORDER_API_BASE = localStorage.getItem('tp_api_base') || 'http://localhost:3000';
@@ -642,8 +633,7 @@
     const pricePerK = Number(currentPkg.pricePerThousand || currentPkg.price || 0);
     const basePrice = qty > 0 ? pricePerK * qty / 1000 : pricePerK;
     document.getElementById('summaryOriginal').textContent = '₺' + formatTL(basePrice);
-    const total = Math.max(0, basePrice - discountApplied);
-    document.getElementById('summaryTotal').textContent = '₺' + formatTL(total);
+    document.getElementById('summaryTotal').textContent = '₺' + formatTL(basePrice);
   }
 
   function onQuantityChange() {
@@ -655,9 +645,6 @@
     const total = pricePerK * qty / 1000;
     document.getElementById('quantityPrice').textContent =
       `${qty.toLocaleString('tr-TR')} adet × ₺${formatTL(pricePerK)}/1000 = ₺${formatTL(total)}`;
-    discountApplied = 0;
-    document.getElementById('discountRow').style.display = 'none';
-    document.getElementById('discountMsg').textContent = '';
     updateSummaryPrice();
   }
 
@@ -689,9 +676,6 @@
     document.getElementById('quantityRange').textContent = `(min: ${service.min.toLocaleString('tr-TR')} — max: ${service.max.toLocaleString('tr-TR')})`;
     document.getElementById('quantityGroup').style.display = 'block';
 
-    discountApplied = 0;
-    document.getElementById('discountRow').style.display = 'none';
-    document.getElementById('discountMsg').textContent = '';
     onQuantityChange();
   }
 
@@ -767,11 +751,6 @@
     }
   }
 
-  // ---- Discount Codes (localStorage'dan yönetilen) ----
-  function getDiscountCodes() {
-    return JSON.parse(localStorage.getItem('tp_discounts') || '{"HOSGELDIN":10,"VIP20":20,"INDIRIM15":15}');
-  }
-
   // ---- Tab Switch ----
   function openSozlesme() {
     document.getElementById('sozlesmeModal').style.display = 'block';
@@ -802,10 +781,6 @@
   function openModal(pkg) {
     currentPkg = pkg;
     selectedService = null;
-    discountApplied = 0;
-    document.getElementById('discountCode').value = '';
-    document.getElementById('discountMsg').textContent = '';
-    document.getElementById('discountRow').style.display = 'none';
     document.getElementById('productSelect').value = '';
     document.getElementById('selectedProductMeta').textContent = 'Servis ID ve fiyat seçim sonrası otomatik belirlenir.';
     document.getElementById('quantityGroup').style.display = 'none';
@@ -869,35 +844,6 @@
   document.getElementById('orderModal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
-
-  // ---- Discount ----
-  function applyDiscount() {
-    const code = document.getElementById('discountCode').value.trim().toUpperCase();
-    const codes = getDiscountCodes();
-    const msg = document.getElementById('discountMsg');
-    const row = document.getElementById('discountRow');
-
-    if (!code) { msg.style.color='var(--error)'; msg.textContent='Lütfen bir kod girin.'; return; }
-
-    if (codes[code]) {
-      const pct = codes[code];
-      const qty = Number(document.getElementById('quantityInput')?.value || currentPkg.amount || 0);
-      const pricePerK = Number(currentPkg.pricePerThousand || currentPkg.price || 0);
-      const basePrice = qty > 0 ? pricePerK * qty / 1000 : pricePerK;
-      discountApplied = Math.round(basePrice * pct / 100);
-      document.getElementById('summaryDiscount').textContent = '-₺' + discountApplied;
-      updateSummaryPrice();
-      row.style.display = 'flex';
-      msg.style.color = 'var(--success)';
-      msg.textContent = '✓ %' + pct + ' indirim uygulandı!';
-    } else {
-      discountApplied = 0;
-      row.style.display = 'none';
-      updateSummaryPrice();
-      msg.style.color = 'var(--error)';
-      msg.textContent = 'Geçersiz indirim kodu.';
-    }
-  }
 
   // ---- Card Formatting ----
   function formatCard(input) {
