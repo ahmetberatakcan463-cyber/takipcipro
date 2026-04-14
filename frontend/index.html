@@ -249,7 +249,7 @@
     <div class="step">
       <div class="step-num">3</div>
       <h3>Teslimatı Bekle</h3>
-      <p>Ödeme sonrası ortalama 5-30 dakika içinde takipçiler gelmeye başlar.</p>
+      <p>Ödeme sonrası ortalama 30 dakika - 1 saat içinde takipçiler gelmeye başlar.</p>
     </div>
   </div>
 </section>
@@ -389,7 +389,7 @@
     </div>
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">Ne zaman gelmeye başlar? <i class="fa-solid fa-plus"></i></button>
-      <div class="faq-a">Ödeme onaylandıktan sonra ortalama 5-30 dakika içinde takipçiler gelmeye başlar. Yoğun dönemlerde bu süre uzayabilir.</div>
+      <div class="faq-a">Ödeme onaylandıktan sonra ortalama 30 dakika - 1 saat içinde takipçiler gelmeye başlar. Yoğun dönemlerde bu süre uzayabilir.</div>
     </div>
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">Hesabım ban yer mi? <i class="fa-solid fa-plus"></i></button>
@@ -426,7 +426,7 @@
       <p class="col-title">Destek</p>
       <a href="#sss">Sık Sorulan Sorular</a>
       <a href="#siparis-takip">Sipariş Takip</a>
-      <a href="https://wa.me/48786164533" target="_blank">WhatsApp Destek</a>
+      <a id="waFooterLink" href="https://wa.me/48786164533" target="_blank">WhatsApp Destek</a>
     </div>
     <div class="footer-links-col">
       <p class="col-title">Yasal</p>
@@ -441,7 +441,7 @@
 </footer>
 
 <!-- WhatsApp Float -->
-<a href="https://wa.me/48786164533" target="_blank" class="wa-float" title="WhatsApp Destek">
+<a id="waFloatLink" href="https://wa.me/48786164533" target="_blank" class="wa-float" title="WhatsApp Destek">
   <i class="fa-brands fa-whatsapp"></i>
 </a>
 <div class="wa-tooltip">💬 7/24 WhatsApp Destek</div>
@@ -1017,6 +1017,19 @@
   })();
 
   loadServicesToSelect();
+
+  // WhatsApp numarasını localStorage ayarlarından oku (admin'den değişince güncellensin)
+  (function applyWaNumber() {
+    try {
+      var s = JSON.parse(localStorage.getItem('tp_settings') || '{}');
+      var num = (s.waNumber || '48786164533').replace(/\D/g, '');
+      var url = 'https://wa.me/' + num;
+      var f = document.getElementById('waFooterLink');
+      var fl = document.getElementById('waFloatLink');
+      if (f) f.href = url;
+      if (fl) fl.href = url;
+    } catch(e) {}
+  })();
 </script>
 
 </body>
