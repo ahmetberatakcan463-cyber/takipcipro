@@ -19,6 +19,7 @@ const fs         = require('fs');
 const path       = require('path');
 const Service    = require('./models/Service');
 const Order      = require('./models/Order');
+const Message    = require('./models/Message');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -770,6 +771,105 @@ app.get('/api/onayla/:mongoId', async (req, res) => {
   } catch(e) {
     return res.status(500).send(`<h2>❌ Hata: ${e.message}</h2>`);
   }
+});
+
+/* ─────────────────────────────────────────────────────
+   CANLI DESTEK (Chat)
+───────────────────────────────────────────────────── */
+
+const chatLimit = rateLimit({ windowMs: 60*1000, max: 15,
+  message: { success:false, error:'Çok fazla mesaj. Lütfen bekleyin.' } });
+
+/**
+ * POST /api/mesaj-gonder
+ * Müşteri mesaj gönderir. Body: { sessionId, ad, icerik }
+ */
+app.post('/api/mesaj-gonder', chatLimit, async (req, res) => {
+  const sessionId = clean(String(req.body.sessionId || ''), 64);
+  const ad        = clean(String(req.body.ad        || 'Ziyaretçi'), 60);
+  const icerik    = clean(String(req.body.icerik    || ''), 1000);
+  if (!sessionId || icerik.length < 1)
+    return res.status(400).json({ success:false, error:'Eksik bilgi.' });
+
+  await Message.create({ sessionId, ad, icerik, gonderen:'musteri' });
+
+  await sendTelegramAlert(
+    `💬 <b>YENİ DESTEK MESAJI</b>\n👤 <b>${ad}</b>\n🔑 Session: <code>${sessionId.slice(0,12)}</code>\n📝 ${icerik.slice(0,300)}`
+  );
+
+  res.json({ success:true });
+});
+
+/**
+ * GET /api/mesajlar/:sessionId
+ * Müşteri kendi konuşmasını çeker (polling).
+ */
+app.get('/api/mesajlar/:sessionId', async (req, res) => {
+  const sessionId = clean(req.params.sessionId, 64);
+  if (!sessionId) return res.status(400).json({ success:false, error:'sessionId gerekli.' });
+
+  const mesajlar = await Message.find({ sessionId })
+    .sort({ createdAt: 1 })
+    .select('icerik gonderen ad createdAt')
+    .lean();
+
+  // Admin cevaplarını okundu yap
+  await Message.updateMany({ sessionId, gonderen:'admin', okundu:false }, { okundu:true });
+
+  res.json({ success:true, data: mesajlar });
+});
+
+/**
+ * GET /api/admin/mesajlar
+ * Tüm konuşmaları listeler (son mesaj + okunmamış sayısı).
+ */
+app.get('/api/admin/mesajlar', adminGuard, async (req, res) => {
+  const sessions = await Message.aggregate([
+    { $sort: { createdAt: -1 } },
+    { $group: {
+      _id: '$sessionId',
+      ad:        { $first: '$ad' },
+      sonMesaj:  { $first: '$icerik' },
+      sonTarih:  { $first: '$createdAt' },
+      okunmamis: { $sum: { $cond: [
+        { $and: [{ $eq:['$gonderen','musteri'] }, { $eq:['$okundu',false] }] }, 1, 0
+      ]}},
+    }},
+    { $sort: { sonTarih: -1 } },
+    { $limit: 200 },
+  ]);
+  const toplamOkunmamis = sessions.reduce((t,s) => t + s.okunmamis, 0);
+  res.json({ success:true, data: sessions, toplamOkunmamis });
+});
+
+/**
+ * GET /api/admin/mesajlar/:sessionId
+ * Konuşma detayı — müşteri mesajlarını okundu yapar.
+ */
+app.get('/api/admin/mesajlar/:sessionId', adminGuard, async (req, res) => {
+  const sessionId = clean(req.params.sessionId, 64);
+  const mesajlar = await Message.find({ sessionId })
+    .sort({ createdAt: 1 })
+    .lean();
+  await Message.updateMany({ sessionId, gonderen:'musteri', okundu:false }, { okundu:true });
+  res.json({ success:true, data: mesajlar });
+});
+
+/**
+ * POST /api/admin/mesaj-cevapla
+ * Admin cevap gönderir. Body: { sessionId, icerik }
+ */
+app.post('/api/admin/mesaj-cevapla', adminGuard, async (req, res) => {
+  const sessionId = clean(String(req.body.sessionId || ''), 64);
+  const icerik    = clean(String(req.body.icerik    || ''), 1000);
+  if (!sessionId || icerik.length < 1)
+    return res.status(400).json({ success:false, error:'Eksik bilgi.' });
+
+  const ilkMesaj = await Message.findOne({ sessionId }).sort({ createdAt:1 }).lean();
+  const ad = ilkMesaj?.ad || 'Ziyaretçi';
+
+  await Message.create({ sessionId, ad, icerik, gonderen:'admin', okundu:true });
+  res.json({ success:true });
 });
 
 /* ─────────────────────────────────────────────────────

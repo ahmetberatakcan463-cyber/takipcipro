@@ -106,6 +106,7 @@
       <li><a href="#" onclick="nav('services',this)"><i class="fas fa-store"></i> Servis Yönetimi</a></li>
       <li><a href="#" onclick="nav('reviews',this)"><i class="fas fa-star"></i> Yorumlar</a></li>
       <li><a href="#" onclick="nav('announcements',this)"><i class="fas fa-bullhorn"></i> Duyurular</a></li>
+      <li><a href="#" onclick="nav('messages',this)"><i class="fas fa-comments"></i> Mesajlar <span id="sbBadgeMessages" style="margin-left:auto;background:rgba(239,68,68,.2);color:#ef4444;font-size:10px;padding:2px 7px;border-radius:10px;display:none;"></span></a></li>
       <div class="sb-section-title">Sistem</div>
       <li><a href="#" onclick="nav('logs',this)"><i class="fas fa-list-ul"></i> Aktivite Logu</a></li>
       <li><a href="#" onclick="nav('settings',this)"><i class="fas fa-gear"></i> Ayarlar</a></li>
@@ -530,6 +531,59 @@
       <div class="adm-card">
         <div class="adm-card-hdr"><h2 id="logsCount">Aktiviteler</h2></div>
         <div id="logsContainer"></div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════
+         MESAJLAR
+         ════════════════════════════════ -->
+    <div id="sec-messages" class="adm-sec" style="display:none;">
+      <div class="admin-topbar">
+        <div>
+          <h1>Müşteri Mesajları</h1>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px;" id="msgSubtitle">Siteden gelen destek talepleri</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn-outline" style="font-size:12px;padding:7px 14px;" onclick="loadConversations()">
+            <i class="fas fa-rotate"></i> Yenile
+          </button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;height:calc(100vh - 130px);">
+
+        <!-- Sol: Konuşma listesi -->
+        <div class="adm-card" style="margin:0;overflow-y:auto;padding:0;">
+          <div style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;">Konuşmalar</div>
+          <div id="convList" style="display:flex;flex-direction:column;"></div>
+        </div>
+
+        <!-- Sağ: Aktif konuşma -->
+        <div class="adm-card" style="margin:0;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+          <!-- Başlık -->
+          <div id="convHeader" style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:12px;flex-shrink:0;">
+            <div style="width:38px;height:38px;background:rgba(201,162,39,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;">👤</div>
+            <div>
+              <div id="convName" style="font-weight:700;font-size:15px;color:var(--gold2);">Konuşma seçin</div>
+              <div id="convSession" style="font-size:11px;color:var(--muted);font-family:monospace;"></div>
+            </div>
+          </div>
+
+          <!-- Mesajlar -->
+          <div id="convMessages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="text-align:center;color:var(--muted);font-size:13px;padding:40px 0;">Sol taraftan bir konuşma seçin</div>
+          </div>
+
+          <!-- Cevap kutusu -->
+          <div id="convReplyArea" style="display:none;padding:12px 14px;border-top:1px solid rgba(255,255,255,.07);display:none;gap:10px;align-items:flex-end;">
+            <textarea id="adminReplyInput" placeholder="Cevabınızı yazın..." rows="2"
+              style="flex:1;background:#1a1a1a;border:1px solid rgba(201,162,39,.25);border-radius:10px;padding:10px 12px;color:#fff;font-size:13px;outline:none;resize:none;font-family:inherit;line-height:1.5;"></textarea>
+            <button onclick="sendAdminReply()"
+              style="background:linear-gradient(135deg,#c9a227,#ffd700);border:none;border-radius:10px;padding:10px 18px;cursor:pointer;font-size:13px;font-weight:700;color:#000;height:42px;white-space:nowrap;">
+              <i class="fas fa-paper-plane"></i> Gönder
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1045,6 +1099,7 @@ function renderSection(sec){
   if (sec==='announcements')renderAnnouncements();
   if (sec==='logs')         renderLogs();
   if (sec==='settings')     loadSettings();
+  if (sec==='messages')     loadConversations();
 }
 
 function initAdmin(){
@@ -1059,6 +1114,9 @@ function initAdmin(){
     badge.textContent = pending;
     badge.style.display='inline-block';
   }
+  // Mesaj badge
+  updateMsgBadge();
+  setInterval(updateMsgBadge, 30000);
 }
 
 /* ─────────────────────────────────────────────────────
@@ -2261,6 +2319,132 @@ function toast(msg, ok=true){
     if(e.target===this) this.classList.remove('open');
   });
 });
+
+/* ─────────────────────────────────────────────────────
+   CANLI DESTEK — Mesajlar
+───────────────────────────────────────────────────── */
+let activeSessionId = null;
+let msgPollTimer = null;
+let convLastCount = 0;
+
+async function loadConversations() {
+  try {
+    const r = await bridgeGet('/api/admin/mesajlar');
+    if (!r.success) return;
+    const badge = document.getElementById('sbBadgeMessages');
+    if (badge) {
+      badge.textContent = r.toplamOkunmamis || '';
+      badge.style.display = r.toplamOkunmamis > 0 ? 'inline-block' : 'none';
+    }
+    const list = document.getElementById('convList');
+    if (!list) return;
+    if (r.data.length === 0) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">Henüz mesaj yok</div>';
+      return;
+    }
+    list.innerHTML = r.data.map(s => `
+      <div onclick="openConversation('${s._id}','${escHtml(s.ad)}')"
+        style="padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer;transition:background .15s;${activeSessionId===s._id?'background:rgba(201,162,39,.1);':''}"
+        onmouseover="this.style.background='rgba(201,162,39,.07)'" onmouseout="this.style.background='${activeSessionId===s._id?'rgba(201,162,39,.1)':'transparent'}'">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-weight:700;font-size:13px;color:${s.okunmamis>0?'var(--gold2)':'var(--text)'}">${escHtml(s.ad)}</span>
+          ${s.okunmamis > 0 ? `<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:9px;">${s.okunmamis}</span>` : ''}
+        </div>
+        <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.sonMesaj)}</div>
+        <div style="font-size:10px;color:#444;margin-top:3px;">${new Date(s.sonTarih).toLocaleString('tr-TR')}</div>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function openConversation(sessionId, ad) {
+  activeSessionId = sessionId;
+  convLastCount = 0;
+  document.getElementById('convName').textContent = ad;
+  document.getElementById('convSession').textContent = 'ID: ' + sessionId.slice(0,16) + '...';
+  document.getElementById('convReplyArea').style.display = 'flex';
+  await loadConvMessages();
+  loadConversations(); // refresh list (okundu güncelleme)
+  startMsgPoll();
+}
+
+async function loadConvMessages() {
+  if (!activeSessionId) return;
+  try {
+    const r = await bridgeGet('/api/admin/mesajlar/' + activeSessionId);
+    if (!r.success) return;
+    const box = document.getElementById('convMessages');
+    box.innerHTML = '';
+    if (r.data.length === 0) {
+      box.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;padding:30px;">Henüz mesaj yok</div>';
+      return;
+    }
+    r.data.forEach(m => {
+      const isAdmin = m.gonderen === 'admin';
+      const div = document.createElement('div');
+      div.style.cssText = `display:flex;flex-direction:column;align-items:${isAdmin?'flex-end':'flex-start'};`;
+      const bubble = document.createElement('div');
+      bubble.style.cssText = `max-width:72%;padding:10px 14px;border-radius:${isAdmin?'14px 4px 14px 14px':'4px 14px 14px 14px'};font-size:13px;line-height:1.55;word-break:break-word;background:${isAdmin?'linear-gradient(135deg,#c9a227,#ffd700);color:#000;font-weight:600':'rgba(255,255,255,.07);color:var(--text);border:1px solid rgba(255,255,255,.1)'};`;
+      bubble.textContent = m.icerik;
+      const meta = document.createElement('div');
+      meta.style.cssText = 'font-size:10px;color:#555;margin-top:3px;';
+      meta.textContent = (isAdmin ? '🎧 Siz' : '👤 ' + m.ad) + ' · ' + new Date(m.createdAt).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+      div.appendChild(bubble);
+      div.appendChild(meta);
+      box.appendChild(div);
+    });
+    box.scrollTop = box.scrollHeight;
+    convLastCount = r.data.length;
+  } catch(e) {}
+}
+
+async function sendAdminReply() {
+  const input = document.getElementById('adminReplyInput');
+  const icerik = input.value.trim();
+  if (!icerik || !activeSessionId) return;
+  input.value = '';
+  try {
+    await bridgePost('/api/admin/mesaj-cevapla', { sessionId: activeSessionId, icerik });
+    await loadConvMessages();
+  } catch(e) {}
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey && document.activeElement && document.activeElement.id === 'adminReplyInput') {
+    e.preventDefault();
+    sendAdminReply();
+  }
+});
+
+function startMsgPoll() {
+  if (msgPollTimer) clearInterval(msgPollTimer);
+  msgPollTimer = setInterval(async () => {
+    if (!activeSessionId) return;
+    try {
+      const r = await bridgeGet('/api/admin/mesajlar/' + activeSessionId);
+      if (r.success && r.data.length > convLastCount) {
+        await loadConvMessages();
+      }
+    } catch(e) {}
+  }, 4000);
+}
+
+// Unread badge güncelleme (initAdmin'dan sonra)
+async function updateMsgBadge() {
+  try {
+    const r = await bridgeGet('/api/admin/mesajlar');
+    if (!r.success) return;
+    const badge = document.getElementById('sbBadgeMessages');
+    if (badge) {
+      badge.textContent = r.toplamOkunmamis || '';
+      badge.style.display = r.toplamOkunmamis > 0 ? 'inline-block' : 'none';
+    }
+  } catch(e) {}
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 /* ─────────────────────────────────────────────────────
    INIT
