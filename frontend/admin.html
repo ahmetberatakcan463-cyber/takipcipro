@@ -550,7 +550,7 @@
         <div class="adm-card" style="max-width:560px;">
           <div class="adm-card-hdr"><h2>Genel Ayarlar</h2></div>
           <div class="form-group"><label>Site Adı</label><input type="text" id="setName" placeholder="TakipçiPro"></div>
-          <div class="form-group"><label>Site Sloganı</label><input type="text" id="setTagline" placeholder="Türkiye'nin #1 Takipçi Platformu"></div>
+          <div class="form-group"><label>Site Sloganı</label><input type="text" id="setTagline" placeholder="Türkiye'nin En Güvenilir Takipçi Web Sitesi"></div>
           <div class="form-group"><label>Hero Başlığı</label><input type="text" id="setHeroTitle" placeholder="Instagram'da Hızla Büyü"></div>
           <div class="form-group"><label>Garanti Süresi (gün)</label><input type="number" id="setGuarantee" placeholder="30"></div>
           <button class="btn-gold" onclick="saveSettings('general')"><i class="fas fa-save"></i> Kaydet</button>
@@ -2128,7 +2128,7 @@ function loadSettings(){
   const s = getSettings();
   const set = (id,val,fallback='') => { const el=document.getElementById(id); if(el) el.value=val||fallback; };
   set('setName',    s.siteName,  'TakipçiPro');
-  set('setTagline', s.tagline,   "Türkiye'nin #1 Takipçi Platformu");
+  set('setTagline', s.tagline,   "Türkiye'nin En Güvenilir Takipçi Web Sitesi");
   set('setHeroTitle',s.heroTitle,'Instagram\'da Hızla Büyü');
   set('setGuarantee',s.guarantee,'30');
   set('setWa',      s.waNumber,  '48786164533');
