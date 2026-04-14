@@ -572,7 +572,7 @@
       <div class="settings-panel" id="sp-contact">
         <div class="adm-card" style="max-width:560px;">
           <div class="adm-card-hdr"><h2>İletişim Bilgileri</h2></div>
-          <div class="form-group"><label>WhatsApp Numarası</label><input type="text" id="setWa" placeholder="905050204037"></div>
+          <div class="form-group"><label>WhatsApp Numarası</label><input type="text" id="setWa" placeholder="48786164533"></div>
           <div class="form-group"><label>E-Posta</label><input type="email" id="setEmail" placeholder="destek@takipcipro.com"></div>
           <div class="form-group"><label>Instagram Hesabı</label><input type="text" id="setIg" placeholder="@takipcipro"></div>
           <button class="btn-gold" onclick="saveSettings('contact')"><i class="fas fa-save"></i> Kaydet</button>
@@ -595,10 +595,11 @@
           </div>
           <div class="form-group">
             <label>Bakım Modu</label>
-            <select id="setMaintenance" class="st-sel" style="width:100%;padding:11px 14px;">
-              <option value="false">Kapalı (Site Normal)</option>
-              <option value="true">Açık (Sadece Admin)</option>
-            </select>
+            <div style="display:flex;align-items:center;gap:16px;padding:12px 0;">
+              <button id="maintenanceToggleBtn" onclick="toggleMaintenanceMode()" style="padding:12px 28px;border-radius:10px;border:none;cursor:pointer;font-size:15px;font-weight:700;transition:all .2s;min-width:200px;">
+              </button>
+              <span id="maintenanceStatusText" style="font-size:13px;color:var(--muted);"></span>
+            </div>
           </div>
           <div class="form-group">
             <label>Sipariş Kabulü</label>
@@ -2129,12 +2130,12 @@ function loadSettings(){
   set('setTagline', s.tagline,   "Türkiye'nin #1 Takipçi Platformu");
   set('setHeroTitle',s.heroTitle,'Instagram\'da Hızla Büyü');
   set('setGuarantee',s.guarantee,'30');
-  set('setWa',      s.waNumber,  '905050204037');
+  set('setWa',      s.waNumber,  '48786164533');
   set('setEmail',   s.email,     '');
   set('setIg',      s.instagram, '');
   set('setBridgeUrl', localStorage.getItem('tp_bridge') || localStorage.getItem('tp_bridge_url') || '');
   set('setBridgeKey', '');
-  set('setMaintenance',s.maintenance?'true':'false');
+  updateMaintenanceBtn(s.maintenance===true);
   set('setOrders',  s.ordersOpen===false?'false':'true');
   set('setAbout',   s.about,     '');
   set('setCurPass',''); set('setNewPass',''); set('setNewPass2','');
@@ -2187,7 +2188,6 @@ function saveSettings(section){
     saveSettings2(s); addLog('İletişim bilgileri kaydedildi.','green'); toast('İletişim bilgileri kaydedildi!',true);
   }
   if(section==='advanced'){
-    s.maintenance = document.getElementById('setMaintenance').value==='true';
     s.ordersOpen  = document.getElementById('setOrders').value==='true';
     s.about       = document.getElementById('setAbout').value.trim();
     // Köprü bilgilerini localStorage'a kaydet (window değişkenlerine de aktar)
@@ -2205,6 +2205,38 @@ function saveSettings(section){
     }
     saveSettings2(s); addLog('Gelişmiş ayarlar kaydedildi.','green'); toast('Ayarlar kaydedildi!',true);
   }
+}
+
+/* ─────────────────────────────────────────────────────
+   BAKIM MODU TOGGLE
+───────────────────────────────────────────────────── */
+function updateMaintenanceBtn(isOn) {
+  const btn = document.getElementById('maintenanceToggleBtn');
+  const txt = document.getElementById('maintenanceStatusText');
+  if (!btn) return;
+  if (isOn) {
+    btn.textContent = '🔴 Bakım Modu Açık';
+    btn.style.background = 'rgba(239,68,68,.15)';
+    btn.style.border = '2px solid #ef4444';
+    btn.style.color = '#ef4444';
+    if (txt) txt.textContent = 'Site şu an bakımda görünüyor — ziyaretçiler bakım sayfasını görüyor.';
+  } else {
+    btn.textContent = '🟢 Site Açık (Normal)';
+    btn.style.background = 'rgba(34,197,94,.15)';
+    btn.style.border = '2px solid #22c55e';
+    btn.style.color = '#22c55e';
+    if (txt) txt.textContent = 'Site normal çalışıyor — ziyaretçiler siteyi görebiliyor.';
+  }
+}
+
+function toggleMaintenanceMode() {
+  const s = getSettings();
+  s.maintenance = !s.maintenance;
+  saveSettings2(s);
+  updateMaintenanceBtn(s.maintenance);
+  const msg = s.maintenance ? 'Bakım modu AÇIldı! Site bakımda görünüyor.' : 'Bakım modu KAPATILDI! Site normal açık.';
+  addLog(msg, s.maintenance ? 'gold' : 'green');
+  toast(msg, !s.maintenance);
 }
 
 /* ─────────────────────────────────────────────────────

@@ -9,6 +9,30 @@
 </head>
 <body>
 
+<!-- ========== BAKIM MODU ========== -->
+<div id="maintenanceOverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0f;z-index:99999;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px;">
+  <div style="max-width:480px;width:100%;">
+    <div style="font-size:64px;margin-bottom:24px;">🔧</div>
+    <h1 style="color:#c9a227;font-size:2rem;font-weight:900;margin-bottom:12px;">Site Bakımda</h1>
+    <p style="color:#a0a0b0;font-size:1rem;line-height:1.6;margin-bottom:32px;">Siteyi daha iyi hale getirmek için kısa süreliğine bakıma aldık. En kısa sürede geri döneceğiz.</p>
+    <div style="background:rgba(201,162,39,.1);border:1px solid rgba(201,162,39,.3);border-radius:12px;padding:20px 24px;display:inline-block;">
+      <span style="color:#c9a227;font-size:0.9rem;"><i class="fa-solid fa-clock" style="margin-right:8px;"></i>Lütfen daha sonra tekrar ziyaret edin</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  try {
+    var s = JSON.parse(localStorage.getItem('tp_settings') || '{}');
+    if (s.maintenance === true) {
+      var el = document.getElementById('maintenanceOverlay');
+      if (el) { el.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+    }
+  } catch(e) {}
+})();
+</script>
+
 <!-- ========== DUYURU BANDI ========== -->
 <div style="background:rgba(245,158,11,.18);border-bottom:2px solid rgba(245,158,11,.5);padding:16px 24px;text-align:center;position:relative;z-index:100;">
   <div style="font-size:20px;font-weight:900;color:#f59e0b;letter-spacing:.3px;">
@@ -182,7 +206,7 @@
   </div>
   <div class="trust-item">
     <div class="trust-item-icon"><i class="fa-solid fa-bolt"></i></div>
-    <div class="trust-item-text"><strong>Anında Teslimat</strong><span>Ortalama 5-30 dk</span></div>
+    <div class="trust-item-text"><strong>Hızlı Teslimat</strong><span>Ortalama 30 dk - 1 saat</span></div>
   </div>
   <div class="trust-item">
     <div class="trust-item-icon"><i class="fa-solid fa-headset"></i></div>
@@ -328,7 +352,7 @@
     <div class="why-card">
       <div class="why-icon"><i class="fa-solid fa-bolt"></i></div>
       <h3>Hızlı Teslimat</h3>
-      <p>Siparişler ortalama 5-30 dakika içinde işleme alınır ve teslimat başlar.</p>
+      <p>Siparişler ortalama 30 dakika - 1 saat içinde işleme alınır ve teslimat başlar.</p>
     </div>
     <div class="why-card">
       <div class="why-icon"><i class="fa-solid fa-rotate-left"></i></div>
@@ -402,7 +426,7 @@
       <p class="col-title">Destek</p>
       <a href="#sss">Sık Sorulan Sorular</a>
       <a href="#siparis-takip">Sipariş Takip</a>
-      <a href="https://wa.me/905xxxxxxxxx" target="_blank">WhatsApp Destek</a>
+      <a href="https://wa.me/48786164533" target="_blank">WhatsApp Destek</a>
     </div>
     <div class="footer-links-col">
       <p class="col-title">Yasal</p>
@@ -417,7 +441,7 @@
 </footer>
 
 <!-- WhatsApp Float -->
-<a href="https://wa.me/905xxxxxxxxx" target="_blank" class="wa-float" title="WhatsApp Destek">
+<a href="https://wa.me/48786164533" target="_blank" class="wa-float" title="WhatsApp Destek">
   <i class="fa-brands fa-whatsapp"></i>
 </a>
 <div class="wa-tooltip">💬 7/24 WhatsApp Destek</div>
@@ -430,7 +454,7 @@
     <!-- Order Form -->
     <div id="orderForm">
       <div class="modal-title">Sipariş Ver</div>
-      <div class="modal-sub">Bilgilerinizi girin, 5-30 dk içinde teslim edilir.</div>
+      <div class="modal-sub">Bilgilerinizi girin, 30 dk - 1 saat içinde teslim edilir.</div>
 
       <div class="modal-pkg-bar">
         <span id="modalPkgName">—</span>
@@ -563,7 +587,7 @@
       </div>
       <div>
         <strong style="color:var(--gold2);">3. Teslimat</strong><br>
-        Siparişler ödeme onayından itibaren genellikle 5–30 dakika içinde başlar. Yoğunluk durumuna göre bu süre uzayabilir. Alıcı, teslimat sürelerinin garantili olmadığını kabul eder.
+        Siparişler ödeme onayından itibaren genellikle 30 dakika – 1 saat içinde başlar. Yoğunluk durumuna göre bu süre uzayabilir. Alıcı, teslimat sürelerinin garantili olmadığını kabul eder.
       </div>
       <div>
         <strong style="color:var(--gold2);">4. İptal ve İade</strong><br>
