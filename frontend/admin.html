@@ -2459,8 +2459,9 @@ let aiYukleniyor = false;
 
 function aiPanelToggle() {
   const panel = document.getElementById('aiPanel');
-  const open = panel.classList.toggle('open');
-  if (open && aiMesajlar.length === 0) {
+  const isOpen = panel.style.display === 'flex';
+  panel.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen && aiMesajlar.length === 0) {
     aiMesajEkle('bot', 'Merhaba! Ben TakipçiPro yardımcı botuyum. 🤖\n\nSana şunları yapabilirim:\n• Servis listele/ara\n• Vitrine ekle veya çıkar\n• Fiyat, isim, açıklama güncelle\n\nNe yapmamı istersin?');
   }
 }
