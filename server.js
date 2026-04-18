@@ -154,7 +154,7 @@ function writeAdminConfig(d) { try { fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.st
 app.get('/api/vitrin', async (req, res) => {
   try {
     const servisler = await Service.find({ vitrin:true, aktif:true })
-      .select('servisId vitrinAd aciklama emoji teslimat populer sira musteriTL eskiFiyatTL min max')
+      .select('servisId vitrinAd aciklama emoji teslimat populer sira musteriTL eskiFiyatTL min max kategori')
       .sort({ sira: 1 })
       .lean();
 
@@ -170,6 +170,7 @@ app.get('/api/vitrin', async (req, res) => {
       delivery:  s.teslimat   || '15-30 dakika',
       popular:   s.populer    || false,
       aciklama:  s.aciklama   || '',
+      kategori:  s.kategori   || '',
       features:  ['Gerçek hesaplar', 'Anlık teslimat', '30 gün garanti'],
     }));
 

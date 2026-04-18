@@ -225,6 +225,10 @@
     <h2>Servis Kataloğu</h2>
     <p>Güncel servisleri buradan inceleyip anında satın alabilirsin.</p>
   </div>
+
+  <!-- Kategori Filtreleri -->
+  <div id="kategori-filtreler" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:28px;"></div>
+
   <div id="ilan-listesi" class="row"></div>
 </section>
 
@@ -765,6 +769,67 @@
     }
   }
 
+  const PLATFORM_ICONS = {
+    instagram: 'fa-brands fa-instagram',
+    youtube:   'fa-brands fa-youtube',
+    tiktok:    'fa-brands fa-tiktok',
+    twitter:   'fa-brands fa-x-twitter',
+    x:         'fa-brands fa-x-twitter',
+    facebook:  'fa-brands fa-facebook',
+    telegram:  'fa-brands fa-telegram',
+    twitch:    'fa-brands fa-twitch',
+    spotify:   'fa-brands fa-spotify',
+    discord:   'fa-brands fa-discord',
+  };
+  const PLATFORM_COLORS = {
+    instagram: '#e1306c',
+    youtube:   '#ff0000',
+    tiktok:    '#010101',
+    twitter:   '#1da1f2',
+    x:         '#000000',
+    facebook:  '#1877f2',
+    telegram:  '#0088cc',
+    twitch:    '#9146ff',
+    spotify:   '#1db954',
+    discord:   '#5865f2',
+  };
+
+  let activeKategori = 'Tümü';
+
+  function getPlatformKey(kategori) {
+    const k = (kategori || '').toLowerCase();
+    for (const key of Object.keys(PLATFORM_ICONS)) {
+      if (k.includes(key)) return key;
+    }
+    return null;
+  }
+
+  function renderKategoriFiltreleri() {
+    const el = document.getElementById('kategori-filtreler');
+    if (!el) return;
+    const kategoriler = ['Tümü', ...new Set(catalogServices.map(s => s.kategori).filter(Boolean))];
+    el.innerHTML = kategoriler.map(kat => {
+      const key = getPlatformKey(kat);
+      const icon = key ? `<i class="${PLATFORM_ICONS[key]}" style="color:${PLATFORM_COLORS[key]};"></i>` : '<i class="fa-solid fa-layer-group"></i>';
+      const isActive = kat === activeKategori;
+      return `<button onclick="filterKategori('${kat}')" style="
+        display:inline-flex;align-items:center;gap:7px;
+        padding:9px 18px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;
+        border:1.5px solid ${isActive ? 'var(--gold)' : 'rgba(255,255,255,.12)'};
+        background:${isActive ? 'rgba(201,162,39,.15)' : 'rgba(255,255,255,.04)'};
+        color:${isActive ? 'var(--gold)' : 'var(--muted)'};
+        transition:all .2s;">
+        ${icon} ${kat}
+      </button>`;
+    }).join('');
+  }
+
+  function filterKategori(kat) {
+    activeKategori = kat;
+    renderKategoriFiltreleri();
+    renderServiceCards();
+  }
+
   function renderServiceCards() {
     const container = document.getElementById('ilan-listesi');
     if (!container) return;
@@ -774,10 +839,25 @@
       return;
     }
 
-    container.innerHTML = catalogServices.map(service => `
+    renderKategoriFiltreleri();
+
+    const filtered = activeKategori === 'Tümü'
+      ? catalogServices
+      : catalogServices.filter(s => s.kategori === activeKategori);
+
+    if (!filtered.length) {
+      container.innerHTML = '<div class="ilan-empty" style="padding:40px;text-align:center;color:var(--muted);">Bu kategoride servis bulunamadı.</div>';
+      return;
+    }
+
+    container.innerHTML = filtered.map(service => {
+      const key = getPlatformKey(service.kategori);
+      const platIcon = key ? `<i class="${PLATFORM_ICONS[key]}" style="color:${PLATFORM_COLORS[key]};font-size:13px;"></i>` : '';
+      return `
       <div class="ilan-col">
         <div class="ilan-card">
           <div class="ilan-badge">#${service.id}</div>
+          ${service.kategori ? `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-bottom:6px;">${platIcon} ${service.kategori}</div>` : ''}
           <h3 class="ilan-title">${service.name}</h3>
           <div class="ilan-meta"><strong>Fiyat:</strong> ₺${formatTL(service.price)} / 1000 adet</div>
           <div class="ilan-meta"><strong>Minimum Sipariş:</strong> ${service.min}</div>
@@ -785,8 +865,8 @@
             <i class="fa-solid fa-cart-shopping"></i> Satın Al
           </button>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   function buyService(serviceId) {
