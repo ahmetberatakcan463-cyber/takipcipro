@@ -876,6 +876,177 @@ app.post('/api/admin/mesaj-cevapla', adminGuard, async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────────────
+   AI YARDIMCI BOT
+───────────────────────────────────────────────────── */
+
+const Anthropic = require('@anthropic-ai/sdk');
+
+const AI_TOOLS = [
+  {
+    name: 'servisleri_listele',
+    description: "MongoDB'deki servisleri listeler. Kategori, arama terimi veya vitrin durumuna göre filtreler.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        ara:      { type: 'string',  description: 'Servis adında aranacak kelime (ör: Instagram, TikTok, takipçi)' },
+        kategori: { type: 'string',  description: 'Kategori filtresi (ör: Instagram)' },
+        vitrin:   { type: 'boolean', description: 'true: sadece vitrindekiler, false: vitrin dışı — belirtilmezse tümü' },
+        limit:    { type: 'number',  description: 'Kaç servis dönsün (max 30, default 20)' },
+      },
+    },
+  },
+  {
+    name: 'servis_guncelle',
+    description: 'Bir servisi günceller: vitrine ekler/çıkarır, ad, fiyat, açıklama, emoji, teslimat süresi gibi alanları değiştirir.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        servisId:    { type: 'number',  description: 'Servis ID (zorunlu)' },
+        vitrinAd:    { type: 'string',  description: 'Sitede müşteriye gösterilecek isim' },
+        musteriTL:   { type: 'number',  description: 'Müşteri fiyatı TL cinsinden' },
+        eskiFiyatTL: { type: 'number',  description: 'Üstü çizili eski fiyat (0 = gösterme)' },
+        aciklama:    { type: 'string',  description: 'Kart altı açıklama metni' },
+        emoji:       { type: 'string',  description: 'Paket emojisi' },
+        teslimat:    { type: 'string',  description: 'Teslimat süresi (ör: 30-60 dakika)' },
+        vitrin:      { type: 'boolean', description: 'Vitrinde gösterilsin mi' },
+        populer:     { type: 'boolean', description: 'En Popüler rozeti' },
+      },
+      required: ['servisId'],
+    },
+  },
+  {
+    name: 'toplu_vitrin',
+    description: 'Birden fazla servisi toplu olarak vitrine ekler veya vitrin dışı bırakır.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        servisIdler: { type: 'array', items: { type: 'number' }, description: 'Servis ID listesi' },
+        vitrin:      { type: 'boolean', description: 'true: vitrine ekle, false: vitrin dışı bırak' },
+      },
+      required: ['servisIdler', 'vitrin'],
+    },
+  },
+];
+
+async function aiAracCagir(name, input) {
+  if (name === 'servisleri_listele') {
+    const { ara, kategori, vitrin, limit = 20 } = input;
+    const filtre = {};
+    if (ara) filtre.$or = [
+      { orijinalAd: new RegExp(ara, 'i') },
+      { vitrinAd:   new RegExp(ara, 'i') },
+    ];
+    if (kategori) filtre.kategori = new RegExp(kategori, 'i');
+    if (vitrin !== undefined && vitrin !== null) filtre.vitrin = vitrin;
+    const servisler = await Service.find(filtre)
+      .sort({ vitrin: -1, sira: 1, servisId: 1 })
+      .limit(Math.min(Number(limit), 30))
+      .lean();
+    return {
+      toplam: servisler.length,
+      servisler: servisler.map(s => ({
+        id: s.servisId, kategori: s.kategori,
+        ad: s.orijinalAd, vitrinAd: s.vitrinAd,
+        fiyatUSD: s.fiyat, musteriTL: s.musteriTL,
+        vitrin: s.vitrin, min: s.min, max: s.max,
+      })),
+    };
+  }
+
+  if (name === 'servis_guncelle') {
+    const { servisId, ...alanlar } = input;
+    const izinli = ['vitrinAd','aciklama','emoji','teslimat','vitrin','aktif','populer','sira','musteriTL','eskiFiyatTL'];
+    const guncelleme = {};
+    izinli.forEach(alan => { if (alanlar[alan] !== undefined) guncelleme[alan] = alanlar[alan]; });
+    guncelleme.guncellendi = new Date();
+    if (guncelleme.populer === true)
+      await Service.updateMany({ servisId: { $ne: Number(servisId) } }, { populer: false });
+    if (guncelleme.vitrin === true && !guncelleme.vitrinAd) {
+      const mevcut = await Service.findOne({ servisId: Number(servisId) }).lean();
+      if (mevcut && !mevcut.vitrinAd && mevcut.orijinalAd)
+        guncelleme.vitrinAd = mevcut.orijinalAd;
+    }
+    const guncel = await Service.findOneAndUpdate(
+      { servisId: Number(servisId) }, { $set: guncelleme }, { new: true }
+    );
+    if (!guncel) return { hata: 'Servis bulunamadı.' };
+    return { basarili: true, servisId, guncellendi: Object.keys(guncelleme) };
+  }
+
+  if (name === 'toplu_vitrin') {
+    const { servisIdler, vitrin } = input;
+    if (vitrin) {
+      const bos = await Service.find({
+        servisId: { $in: servisIdler.map(Number) },
+        $or: [{ vitrinAd: { $exists: false } }, { vitrinAd: '' }, { vitrinAd: null }],
+      }).lean();
+      for (const s of bos)
+        if (s.orijinalAd)
+          await Service.updateOne({ servisId: s.servisId }, { $set: { vitrinAd: s.orijinalAd } });
+    }
+    const sonuc = await Service.updateMany(
+      { servisId: { $in: servisIdler.map(Number) } },
+      { $set: { vitrin: Boolean(vitrin), guncellendi: new Date() } }
+    );
+    return { basarili: true, guncellenen: sonuc.modifiedCount };
+  }
+
+  return { hata: 'Bilinmeyen araç.' };
+}
+
+app.post('/api/admin/ai-sohbet', adminGuard, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY)
+    return res.status(500).json({ success: false, error: 'ANTHROPIC_API_KEY tanımlı değil.' });
+
+  const { mesajlar } = req.body;
+  if (!Array.isArray(mesajlar) || mesajlar.length === 0)
+    return res.status(400).json({ success: false, error: 'Mesaj listesi gerekli.' });
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  let messages = mesajlar.slice(-20);
+
+  try {
+    while (true) {
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        system: `Sen TakipçiPro admin panelinin yardımcı botusun. Türkçe konuşursun. Kısa ve net cevap ver.
+
+Yapabileceklerin:
+- Servisleri listele/ara (servisleri_listele aracı)
+- Servisleri vitrine ekle/çıkar (servis_guncelle veya toplu_vitrin)
+- Servis adı, fiyat, açıklama, emoji, teslimat süresi güncelle (servis_guncelle)
+
+Önemli notlar:
+- Servislerin ham fiyatı USD cinsinden (fiyatUSD). Müşteri fiyatı TL (musteriTL).
+- Fiyat belirtilmeden vitrine ekleme isterse, vitrine ekle ama musteriTL belirtme, kullanıcıya TL fiyat sor.
+- Birden fazla servisi toplu vitrine almak için toplu_vitrin kullan.
+- Servis ID'lerini bulmak için önce servisleri_listele kullan.`,
+        messages,
+        tools: AI_TOOLS,
+      });
+
+      if (response.stop_reason !== 'tool_use') {
+        const metin = response.content.find(c => c.type === 'text')?.text || '';
+        return res.json({ success: true, cevap: metin });
+      }
+
+      messages = [...messages, { role: 'assistant', content: response.content }];
+      const toolResults = [];
+      for (const block of response.content) {
+        if (block.type !== 'tool_use') continue;
+        const result = await aiAracCagir(block.name, block.input);
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+      }
+      messages = [...messages, { role: 'user', content: toolResults }];
+    }
+  } catch(e) {
+    console.error('[AI SOHBET]', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+/* ─────────────────────────────────────────────────────
    SAĞLIK & 404
 ───────────────────────────────────────────────────── */
 app.get('/api/saglik', (req, res) => {
