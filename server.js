@@ -889,13 +889,13 @@ const AI_TOOLS = [
         ara:      { type: 'string',  description: 'Servis adında aranacak kelime (ör: Instagram, TikTok, takipçi)' },
         kategori: { type: 'string',  description: 'Kategori filtresi (ör: Instagram)' },
         vitrin:   { type: 'boolean', description: 'true: sadece vitrindekiler, false: vitrin dışı — belirtilmezse tümü' },
-        limit:    { type: 'number',  description: 'Kaç servis dönsün (max 30, default 20)' },
+        limit:    { type: 'number',  description: 'Kaç servis dönsün (max 50, default 20)' },
       },
     },
   },
   {
     name: 'servis_guncelle',
-    description: 'Bir servisi günceller: vitrine ekler/çıkarır, ad, fiyat, açıklama, emoji, teslimat süresi gibi alanları değiştirir.',
+    description: 'Tek bir servisi günceller. Vitrine ekler/çıkarır, ad, fiyat, açıklama, emoji, teslimat süresi, popülerlik değiştirir.',
     input_schema: {
       type: 'object',
       properties: {
@@ -907,7 +907,9 @@ const AI_TOOLS = [
         emoji:       { type: 'string',  description: 'Paket emojisi' },
         teslimat:    { type: 'string',  description: 'Teslimat süresi (ör: 30-60 dakika)' },
         vitrin:      { type: 'boolean', description: 'Vitrinde gösterilsin mi' },
-        populer:     { type: 'boolean', description: 'En Popüler rozeti' },
+        aktif:       { type: 'boolean', description: 'Servis aktif mi' },
+        populer:     { type: 'boolean', description: 'En Popüler rozeti göster' },
+        sira:        { type: 'number',  description: 'Vitrin sırası (küçük sayı önce gelir)' },
       },
       required: ['servisId'],
     },
@@ -924,6 +926,61 @@ const AI_TOOLS = [
       required: ['servisIdler', 'vitrin'],
     },
   },
+  {
+    name: 'toplu_fiyat_guncelle',
+    description: 'Birden fazla servise aynı anda fiyat ve isteğe bağlı eski fiyat atar.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        guncellemeler: {
+          type: 'array',
+          description: 'Her eleman bir servisin fiyat güncellemesi',
+          items: {
+            type: 'object',
+            properties: {
+              servisId:    { type: 'number' },
+              musteriTL:   { type: 'number' },
+              eskiFiyatTL: { type: 'number' },
+            },
+            required: ['servisId', 'musteriTL'],
+          },
+        },
+      },
+      required: ['guncellemeler'],
+    },
+  },
+  {
+    name: 'siparisleri_listele',
+    description: "Son siparişleri listeler. Durum veya kullanıcı adına göre filtre uygulanabilir.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        durum: { type: 'string', description: 'bekliyor | isleniyor | tamamlandi | iptal | beklemede | success | error' },
+        ara:   { type: 'string', description: 'Kullanıcı adı veya sipariş no ile arama' },
+        limit: { type: 'number', description: 'Kaç sipariş dönsün (max 50, default 20)' },
+      },
+    },
+  },
+  {
+    name: 'istatistik_getir',
+    description: 'Sitenin genel istatistiklerini getirir: sipariş sayısı, servis sayısı, SMM panel bakiyesi.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'servisleri_smm_guncelle',
+    description: "SosyalBizde SMM panelinden servisleri çekip MongoDB'yi günceller. 'Servisleri çek' veya 'güncelle' istenince kullan.",
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'mesajlari_listele',
+    description: 'Müşteri mesajlarını/konuşmalarını listeler.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'number', description: 'Kaç konuşma dönsün (default 10)' },
+      },
+    },
+  },
 ];
 
 async function aiAracCagir(name, input) {
@@ -938,15 +995,19 @@ async function aiAracCagir(name, input) {
     if (vitrin !== undefined && vitrin !== null) filtre.vitrin = vitrin;
     const servisler = await Service.find(filtre)
       .sort({ vitrin: -1, sira: 1, servisId: 1 })
-      .limit(Math.min(Number(limit), 30))
+      .limit(Math.min(Number(limit), 50))
       .lean();
+    const kategoriler = await Service.distinct('kategori');
     return {
       toplam: servisler.length,
+      mevcutKategoriler: kategoriler,
       servisler: servisler.map(s => ({
         id: s.servisId, kategori: s.kategori,
         ad: s.orijinalAd, vitrinAd: s.vitrinAd,
         fiyatUSD: s.fiyat, musteriTL: s.musteriTL,
-        vitrin: s.vitrin, min: s.min, max: s.max,
+        vitrin: s.vitrin, aktif: s.aktif,
+        populer: s.populer, sira: s.sira,
+        min: s.min, max: s.max,
       })),
     };
   }
@@ -989,6 +1050,91 @@ async function aiAracCagir(name, input) {
     return { basarili: true, guncellenen: sonuc.modifiedCount };
   }
 
+  if (name === 'toplu_fiyat_guncelle') {
+    const { guncellemeler } = input;
+    let guncellenen = 0;
+    for (const g of guncellemeler) {
+      const set = { musteriTL: g.musteriTL, guncellendi: new Date() };
+      if (g.eskiFiyatTL !== undefined) set.eskiFiyatTL = g.eskiFiyatTL;
+      const r = await Service.updateOne({ servisId: Number(g.servisId) }, { $set: set });
+      if (r.modifiedCount) guncellenen++;
+    }
+    return { basarili: true, guncellenen };
+  }
+
+  if (name === 'siparisleri_listele') {
+    const { durum, ara, limit = 20 } = input;
+    const filtre = {};
+    if (durum) filtre.status = durum;
+    if (ara) filtre.$or = [
+      { username: new RegExp(ara, 'i') },
+      { smmOrderId: new RegExp(ara, 'i') },
+    ];
+    const siparisler = await Order.find(filtre)
+      .sort({ createdAt: -1 })
+      .limit(Math.min(Number(limit), 50))
+      .lean();
+    return {
+      toplam: siparisler.length,
+      siparisler: siparisler.map(s => ({
+        id: s._id, kullanici: s.username, miktar: s.quantity,
+        durum: s.status, fiyat: s.smmResponse?.totalPrice,
+        servisId: s.serviceId, tarih: s.createdAt,
+      })),
+    };
+  }
+
+  if (name === 'istatistik_getir') {
+    const [toplam, vitrin, aktif, kategoriler, loglar] = await Promise.all([
+      Service.countDocuments(),
+      Service.countDocuments({ vitrin: true }),
+      Service.countDocuments({ aktif: true }),
+      Service.distinct('kategori'),
+      Promise.resolve(readLog()),
+    ]);
+    let bakiye = null;
+    try { const b = await smmCall({ action: 'balance' }); bakiye = b.balance; } catch(e) {}
+    return {
+      toplamServis: toplam, vitrinServis: vitrin, aktifServis: aktif,
+      kategoriSayisi: kategoriler.length, kategoriler,
+      toplamSiparis: loglar.length,
+      basariliSiparis: loglar.filter(l => l.durum === 'iletildi').length,
+      smmBakiye: bakiye,
+    };
+  }
+
+  if (name === 'servisleri_smm_guncelle') {
+    const data = await smmCall({ action: 'services' });
+    if (!Array.isArray(data)) return { hata: 'SMM API beklenmeyen yanıt döndü.' };
+    let eklenen = 0, guncellenen = 0;
+    for (const s of data) {
+      const apiData = {
+        kategori: s.category || '', orijinalAd: s.name || '',
+        fiyat: parseFloat(s.rate) || 0, min: parseInt(s.min) || 10,
+        max: parseInt(s.max) || 10000, guncellendi: new Date(),
+      };
+      const mevcut = await Service.findOne({ servisId: Number(s.service) });
+      if (mevcut) { await Service.updateOne({ servisId: Number(s.service) }, { $set: apiData }); guncellenen++; }
+      else { await Service.create({ servisId: Number(s.service), ...apiData, vitrin: false, aktif: true, populer: false, sira: 999, musteriTL: 0, eskiFiyatTL: 0 }); eklenen++; }
+    }
+    return { basarili: true, toplam: data.length, eklenen, guncellenen };
+  }
+
+  if (name === 'mesajlari_listele') {
+    const { limit = 10 } = input;
+    const sessions = await Message.aggregate([
+      { $sort: { createdAt: -1 } },
+      { $group: {
+        _id: '$sessionId', ad: { $first: '$ad' },
+        sonMesaj: { $first: '$icerik' }, sonTarih: { $first: '$createdAt' },
+        okunmamis: { $sum: { $cond: [{ $and: [{ $eq: ['$gonderen','musteri'] }, { $eq: ['$okundu',false] }] }, 1, 0] } },
+      }},
+      { $sort: { sonTarih: -1 } },
+      { $limit: Math.min(Number(limit), 50) },
+    ]);
+    return { toplam: sessions.length, konusmalar: sessions };
+  }
+
   return { hata: 'Bilinmeyen araç.' };
 }
 
@@ -1002,25 +1148,34 @@ app.post('/api/admin/ai-sohbet', adminGuard, async (req, res) => {
 
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  let messages = mesajlar.slice(-20);
+  let messages = mesajlar.slice(-30);
 
   try {
     while (true) {
       const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1024,
-        system: `Sen TakipçiPro admin panelinin yardımcı botusun. Türkçe konuşursun. Kısa ve net cevap ver.
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        system: `Sen TakipçiPro admin panelinin akıllı yardımcı botusun. Türkçe konuşursun.
 
-Yapabileceklerin:
-- Servisleri listele/ara (servisleri_listele aracı)
-- Servisleri vitrine ekle/çıkar (servis_guncelle veya toplu_vitrin)
-- Servis adı, fiyat, açıklama, emoji, teslimat süresi güncelle (servis_guncelle)
+TakipçiPro bir Instagram/sosyal medya takipçi satış sitesidir. SosyalBizde SMM panelinden servis çeker.
 
-Önemli notlar:
-- Servislerin ham fiyatı USD cinsinden (fiyatUSD). Müşteri fiyatı TL (musteriTL).
-- Fiyat belirtilmeden vitrine ekleme isterse, vitrine ekle ama musteriTL belirtme, kullanıcıya TL fiyat sor.
-- Birden fazla servisi toplu vitrine almak için toplu_vitrin kullan.
-- Servis ID'lerini bulmak için önce servisleri_listele kullan.`,
+YAPABİLECEKLERİN:
+1. Servis yönetimi: listele, ara, filtrele (servisleri_listele)
+2. Servis güncelle: vitrine ekle/çıkar, ad, fiyat, açıklama, emoji, teslimat süresi, sıra, aktiflik (servis_guncelle)
+3. Toplu vitrin: birden fazla servisi aynı anda vitrine al/çıkar (toplu_vitrin)
+4. Toplu fiyat: birden fazla servise aynı anda fiyat ver (toplu_fiyat_guncelle)
+5. Siparişleri gör: listele, filtrele (siparisleri_listele)
+6. İstatistik: genel bakış, bakiye, sipariş sayıları (istatistik_getir)
+7. SMM güncelle: SosyalBizde'den güncel servisleri çek (servisleri_smm_guncelle)
+8. Müşteri mesajları: konuşmaları listele (mesajlari_listele)
+
+ÖNEMLİ BİLGİLER:
+- fiyatUSD: SosyalBizde'nin USD fiyatı (1000 adet için)
+- musteriTL: müşteriye gösterilen TL fiyatı (admin belirler)
+- Fiyat belirtilmeden vitrine ekleme istersen vitrine ekle, musteriTL=0 bırak ve fiyat sor
+- Toplu işlemlerde önce servisleri_listele ile ID'leri bul, sonra işlemi yap
+- Kâr marjı hesaplarken: musteriTL = (fiyatUSD / 1000 * kur) * (1 + marj/100)
+- Yanıtlarında ne yaptığını açıkça belirt`,
         messages,
         tools: AI_TOOLS,
       });
