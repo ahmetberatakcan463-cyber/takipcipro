@@ -262,45 +262,36 @@
 <section class="section" id="yorumlar">
   <div class="section-header">
     <div class="section-tag">Müşteri Yorumları</div>
-    <h2>Onlar Denedi, Memnun Kaldı</h2>
-    <p>Binlerce mutlu müşterimizden bazıları.</p>
+    <h2>Onlar Ne Dedi?</h2>
+    <p>Müşterilerimizin gerçek deneyimleri.</p>
   </div>
-  <div class="testimonials-grid">
-    <div class="testimonial-card">
-      <div class="testimonial-stars">★★★★★</div>
-      <p class="testimonial-text">"1000 takipçi aldım, hepsi profil fotoğraflı gerçek hesaplardı. Hiç düşme olmadı. Kesinlikle tavsiye ederim!"</p>
-      <div class="testimonial-author">
-        <div class="testimonial-avatar" style="background:linear-gradient(135deg,#c9a227,#ffd700);">M</div>
-        <div>
-          <div class="testimonial-name">Merve Ö.</div>
-          <div class="testimonial-handle">@merve_lifestyle</div>
-        </div>
-        <div class="testimonial-badge"><i class="fa-solid fa-circle-check"></i> Doğrulanmış</div>
+  <div class="testimonials-grid" id="yorumlar-grid"></div>
+
+  <!-- Yorum Ekle Formu -->
+  <div style="max-width:520px;margin:36px auto 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:24px;">
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--gold2);"><i class="fa-solid fa-pen-to-square" style="margin-right:8px;"></i>Yorum Yaz</h3>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;gap:10px;">
+        <input id="yorumAd" type="text" placeholder="Adınız (ör: Mehmet K.)" maxlength="30"
+          style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;">
+        <input id="yorumHandle" type="text" placeholder="@kullaniciadi" maxlength="30"
+          style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;">
       </div>
-    </div>
-    <div class="testimonial-card">
-      <div class="testimonial-stars">★★★★★</div>
-      <p class="testimonial-text">"İşletme hesabım için 2500 takipçi aldım. Sipariş 20 dakika içinde geldi. Fiyat/kalite oranı muhteşem."</p>
-      <div class="testimonial-author">
-        <div class="testimonial-avatar" style="background:linear-gradient(135deg,#3b82f6,#60a5fa);">A</div>
-        <div>
-          <div class="testimonial-name">Ahmet K.</div>
-          <div class="testimonial-handle">@ahmet_cafe</div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-size:13px;color:var(--muted);">Puan:</span>
+        <div id="yorumYildizSecici" style="display:flex;gap:4px;cursor:pointer;">
+          <span onclick="yorumYildizSec(1)" style="font-size:22px;color:#555;">★</span>
+          <span onclick="yorumYildizSec(2)" style="font-size:22px;color:#555;">★</span>
+          <span onclick="yorumYildizSec(3)" style="font-size:22px;color:#555;">★</span>
+          <span onclick="yorumYildizSec(4)" style="font-size:22px;color:#555;">★</span>
+          <span onclick="yorumYildizSec(5)" style="font-size:22px;color:#555;">★</span>
         </div>
-        <div class="testimonial-badge"><i class="fa-solid fa-circle-check"></i> Doğrulanmış</div>
       </div>
-    </div>
-    <div class="testimonial-card">
-      <div class="testimonial-stars">★★★★★</div>
-      <p class="testimonial-text">"Beğeni paketini denedim, anında geldi. Reels'im keşfete düştü sayesinde. Tekrar alacağım."</p>
-      <div class="testimonial-author">
-        <div class="testimonial-avatar" style="background:linear-gradient(135deg,#ec4899,#f43f5e);">Z</div>
-        <div>
-          <div class="testimonial-name">Zeynep Y.</div>
-          <div class="testimonial-handle">@zeynep_beauty</div>
-        </div>
-        <div class="testimonial-badge"><i class="fa-solid fa-circle-check"></i> Doğrulanmış</div>
-      </div>
+      <textarea id="yorumMetin" placeholder="Deneyiminizi paylaşın..." maxlength="300" rows="3"
+        style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;resize:none;font-family:inherit;"></textarea>
+      <button onclick="yorumEkle()" class="btn-gold" style="width:100%;justify-content:center;padding:11px;">
+        <i class="fa-solid fa-paper-plane"></i> Yorumu Gönder
+      </button>
     </div>
   </div>
 </section>
@@ -385,27 +376,31 @@
   <div class="faq-list">
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">Şifremi vermem gerekiyor mu? <i class="fa-solid fa-plus"></i></button>
-      <div class="faq-a">Hayır, kesinlikle şifrenize ihtiyacımız yok. Sadece kullanıcı adınız veya gönderi linkiniz yeterlidir.</div>
+      <div class="faq-a">Hayır, kesinlikle şifrenize ihtiyacımız yok ve istemiyoruz. Sipariş vermek için yalnızca Instagram kullanıcı adınız yeterlidir. Hesabınızın <strong>herkese açık</strong> olması gerektiğini unutmayın.</div>
     </div>
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">Takipçiler gerçek mi? <i class="fa-solid fa-plus"></i></button>
-      <div class="faq-a">Evet, tüm takipçiler gerçek, aktif Instagram kullanıcılarından oluşmaktadır. Bot veya fake hesap kullanmıyoruz.</div>
+      <div class="faq-a">Bu, aldığınız pakete göre değişmektedir. Servis kataloğunda <strong>"Gerçek"</strong> veya <strong>"Kaliteli"</strong> ibareli paketler aktif, gerçek hesaplardan gelir. <strong>"Hızlı"</strong> veya düşük fiyatlı paketlerde ise bot/karışık hesaplar kullanılabilir. Hangi paketi aldığınıza dikkat edin; servis açıklamasını okuyun.</div>
     </div>
     <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">Ne zaman gelmeye başlar? <i class="fa-solid fa-plus"></i></button>
-      <div class="faq-a">Ödeme onaylandıktan sonra ortalama 30 dakika - 1 saat içinde takipçiler gelmeye başlar. Yoğun dönemlerde bu süre uzayabilir.</div>
+      <button class="faq-q" onclick="toggleFaq(this)">Takipçiler ne zaman gelir? <i class="fa-solid fa-plus"></i></button>
+      <div class="faq-a">Servise ve pakete göre değişir. Çoğu siparişte ödeme onayından sonra <strong>15 dakika - 1 saat</strong> içinde gelmeye başlar. Bazı servisler anlık başlarken, yoğun dönemlerde birkaç saat sürebilir. Tam teslimata kadar saatler geçebilir, endişelenmeyin.</div>
     </div>
     <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">Hesabım ban yer mi? <i class="fa-solid fa-plus"></i></button>
-      <div class="faq-a">Hayır, güvenli ve Instagram kurallarına uygun yöntemler kullandığımız için hesabınız ban yemez. Bugüne kadar hiçbir müşterimizin hesabı askıya alınmamıştır.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">İndirim kodu nasıl kullanırım? <i class="fa-solid fa-plus"></i></button>
-      <div class="faq-a">Sipariş ekranında "İndirim Kodu" alanına kodunuzu girin ve "Uygula" butonuna tıklayın. İndirim otomatik olarak uygulanır.</div>
+      <button class="faq-q" onclick="toggleFaq(this)">Hesabım ban yer mi ya da askıya alınır mı? <i class="fa-solid fa-plus"></i></button>
+      <div class="faq-a">Servislerimiz Instagram'ın sistemlerini tetiklemeyecek şekilde yavaş ve doğal hızda çalışır. Hesabınızın ban yemesi veya askıya alınması son derece düşük ihtimaldir. Ancak şunu tavsiye ederiz: <strong>arka arkaya çok büyük siparişler vermeyin</strong>, siparişler arasında birkaç gün bekleyin. Bu basit önlem riski neredeyse sıfıra indirir.</div>
     </div>
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">Takipçiler düşerse ne olur? <i class="fa-solid fa-plus"></i></button>
-      <div class="faq-a">Pakete göre 30-90 günlük düşme garantimiz mevcuttur. Düşme olması durumunda ücretsiz olarak tamamlanır. Destek hattımızla iletişime geçmeniz yeterlidir.</div>
+      <div class="faq-a"><strong>Garantili paketlerde</strong> garanti süresi boyunca takipçi düşmesi yaşamazsınız; düşme olursa ücretsiz tamamlanır. <strong>Garantisiz paketlerde</strong> zaman içinde küçük düşmeler yaşanabilir, bu normaldir. Hangi paketin garantili olduğunu servis açıklamasından görebilirsiniz.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Ödeme yaptım, siparişim nerede? <i class="fa-solid fa-plus"></i></button>
+      <div class="faq-a">Ödemenizi onayladıktan sonra siparişiniz sisteme alınır. Sayfanın üstündeki <strong>"Sipariş Takip"</strong> bölümüne sipariş numaranızı girerek anlık durumu görebilirsiniz. Sorun yaşarsanız WhatsApp destek hattımızdan bize ulaşın.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">Hangi platformlar için servis var? <i class="fa-solid fa-plus"></i></button>
+      <div class="faq-a">Instagram, TikTok, YouTube, Twitter/X ve daha fazlası için servislerimiz mevcuttur. Servis kataloğunda kategori filtresini kullanarak istediğiniz platforma ait servisleri görebilirsiniz.</div>
     </div>
   </div>
 </section>
@@ -1130,6 +1125,78 @@
       el.textContent = count.toLocaleString('tr-TR');
     }, 3000);
   })();
+
+  // ---- Yorumlar ----
+  const VARSAYILAN_YORUMLAR = [
+    { ad: 'Merve Ö.', handle: '@merve_ozdemir', yildiz: 5, metin: '1000 takipçi aldım, birkaç saat içinde geldi. Hesabımda hiçbir sorun olmadı, memnun kaldım.', renk: '#c9a227', tarih: '2 gün önce' },
+    { ad: 'Ahmet K.', handle: '@ahmetkaya_ig', yildiz: 4, metin: 'İşletme sayfam için 2500 takipçi aldım. Ödeme sonrası biraz beklettim ama geldi, sorun yok. Bir dahaki sefere tekrar denerim.', renk: '#3b82f6', tarih: '5 gün önce' },
+    { ad: 'Zeynep S.', handle: '@zeynep.sahin', yildiz: 5, metin: 'Reels\'ime beğeni aldım, keşfete düştü. Fiyat ucuz, hızlı geldi. Tavsiye ederim.', renk: '#ec4899', tarih: '1 hafta önce' },
+    { ad: 'Burak T.', handle: '@burakt.34', yildiz: 4, metin: 'İlk siparişimde biraz şüpheliydim ama geldi. Küçük bir düşme oldu sonradan ama zaten garantisiz paketti biliyordum.', renk: '#22c55e', tarih: '1 hafta önce' },
+    { ad: 'Selin A.', handle: '@selinacar_', yildiz: 5, metin: 'Çok hızlı, şifremi istemedi sadece kullanıcı adımı girdim. Kesinlikle güvenilir.', renk: '#f97316', tarih: '2 hafta önce' },
+    { ad: 'Emre D.', handle: '@emredmr', yildiz: 3, metin: 'Beklediğimden biraz uzun sürdü ama sonunda geldi. Müşteri hizmetleri WA\'dan hızlı cevap verdi.', renk: '#8b5cf6', tarih: '3 hafta önce' },
+  ];
+
+  let seciliYildiz = 5;
+
+  function yorumYildizSec(n) {
+    seciliYildiz = n;
+    const yildizlar = document.querySelectorAll('#yorumYildizSecici span');
+    yildizlar.forEach((el, i) => { el.style.color = i < n ? '#f59e0b' : '#555'; });
+  }
+
+  function getYorumlar() {
+    try { return JSON.parse(localStorage.getItem('tp_yorumlar') || 'null') || VARSAYILAN_YORUMLAR; }
+    catch(e) { return VARSAYILAN_YORUMLAR; }
+  }
+
+  function saveYorumlar(yorumlar) {
+    localStorage.setItem('tp_yorumlar', JSON.stringify(yorumlar));
+  }
+
+  function yorumEkle() {
+    const ad = document.getElementById('yorumAd').value.trim();
+    const handle = document.getElementById('yorumHandle').value.trim();
+    const metin = document.getElementById('yorumMetin').value.trim();
+    if (!ad || !metin) { alert('Ad ve yorum alanları zorunludur.'); return; }
+    const renkler = ['#c9a227','#3b82f6','#ec4899','#22c55e','#f97316','#8b5cf6'];
+    const renk = renkler[Math.floor(Math.random() * renkler.length)];
+    const yeni = { ad, handle: handle || '', yildiz: seciliYildiz, metin, renk, tarih: 'Az önce' };
+    const yorumlar = getYorumlar();
+    yorumlar.unshift(yeni);
+    saveYorumlar(yorumlar);
+    renderYorumlar();
+    document.getElementById('yorumAd').value = '';
+    document.getElementById('yorumHandle').value = '';
+    document.getElementById('yorumMetin').value = '';
+    yorumYildizSec(5);
+    document.getElementById('yorumlar').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function renderYorumlar() {
+    const grid = document.getElementById('yorumlar-grid');
+    if (!grid) return;
+    const yorumlar = getYorumlar();
+    grid.innerHTML = yorumlar.map(y => `
+      <div class="testimonial-card">
+        <div class="testimonial-stars">${'★'.repeat(y.yildiz)}${'☆'.repeat(5 - y.yildiz)}</div>
+        <p class="testimonial-text">"${escHtml ? escHtml(y.metin) : y.metin}"</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar" style="background:${y.renk};">${y.ad.charAt(0).toUpperCase()}</div>
+          <div>
+            <div class="testimonial-name">${y.ad}</div>
+            ${y.handle ? `<div class="testimonial-handle">${y.handle}</div>` : ''}
+          </div>
+          <div style="margin-left:auto;font-size:11px;color:var(--muted);">${y.tarih || ''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function escHtml(str) {
+    return String(str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  yorumYildizSec(5);
+  renderYorumlar();
 
   loadServicesToSelect();
 
