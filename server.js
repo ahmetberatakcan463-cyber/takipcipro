@@ -879,8 +879,6 @@ app.post('/api/admin/mesaj-cevapla', adminGuard, async (req, res) => {
    AI YARDIMCI BOT
 ───────────────────────────────────────────────────── */
 
-const Anthropic = require('@anthropic-ai/sdk');
-
 const AI_TOOLS = [
   {
     name: 'servisleri_listele',
@@ -1002,6 +1000,7 @@ app.post('/api/admin/ai-sohbet', adminGuard, async (req, res) => {
   if (!Array.isArray(mesajlar) || mesajlar.length === 0)
     return res.status(400).json({ success: false, error: 'Mesaj listesi gerekli.' });
 
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   let messages = mesajlar.slice(-20);
 
