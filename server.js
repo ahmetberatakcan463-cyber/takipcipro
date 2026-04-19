@@ -867,6 +867,7 @@ app.get('/api/shopier-test', async (req, res) => {
     const r = await axios.post('https://api.shopier.com/v1/products', {
       title: 'Test Urun - Silinecek',
       price: 1,
+      type: 'digital',
     }, {
       headers: { Authorization: `Bearer ${shopierToken}`, 'Content-Type': 'application/json' },
       timeout: 8000,
