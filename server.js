@@ -845,6 +845,70 @@ app.get('/api/onayla/:mongoId', async (req, res) => {
 });
 
 /* ─────────────────────────────────────────────────────
+   SHOPİER DURUM TESTI
+───────────────────────────────────────────────────── */
+app.get('/api/shopier-test', async (req, res) => {
+  const results = {};
+
+  // 1) REST API testi (JWT token ile)
+  try {
+    const shopierToken = process.env.SHOPIER_TOKEN || '';
+    const r = await axios.get('https://api.shopier.com/v1/shop', {
+      headers: { Authorization: `Bearer ${shopierToken}` },
+      timeout: 8000,
+    });
+    results.restApi = { ok: true, status: r.status, data: r.data };
+  } catch (e) {
+    results.restApi = { ok: false, status: e.response?.status, error: e.response?.data || e.message };
+  }
+
+  // 2) Ödeme form API testi (API_key ile)
+  try {
+    const randomNr = '123456';
+    const orderId  = 'TEST-' + Date.now();
+    const currency = '0';
+    const total    = '1.00';
+    const data     = randomNr + orderId + total + currency;
+    const sig      = crypto.createHmac('sha256', SHOPIER_API_SECRET).update(data).digest('base64');
+
+    const params = new URLSearchParams({
+      API_key: SHOPIER_API_KEY, website_index: '1', platform_order_id: orderId,
+      product_name: 'Test', product_type: '1', buyer_name: 'Test', buyer_surname: 'Test',
+      buyer_email: 'test@test.com', buyer_phone: '5000000000', buyer_id_nr: orderId,
+      buyer_account_age: '0', billing_address: 'TR', billing_city: 'Istanbul',
+      billing_country: 'TR', billing_postcode: '34000', shipping_address: 'TR',
+      shipping_city: 'Istanbul', shipping_country: 'TR', shipping_postcode: '34000',
+      total_order_value: total, currency, platform: '0', is_in_frame: '0',
+      current_language: '0', modul_version: '1.0.0', random_nr: randomNr,
+      signature: sig, callback: `${BACKEND_URL}/api/shopier-callback`,
+    });
+
+    const r2 = await axios.post('https://www.shopier.com/ShowProduct/api_pay4.php',
+      params.toString(),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 8000, maxRedirects: 0 }
+    );
+    results.formApi = { ok: true, status: r2.status };
+  } catch (e) {
+    const status = e.response?.status;
+    const body   = e.response?.data ? String(e.response.data).slice(0, 300) : e.message;
+    results.formApi = { ok: false, status, body };
+  }
+
+  // Yorum
+  if (results.formApi.status === 302 || results.formApi.ok) {
+    results.yorum = '✅ Form API çalışıyor, ödeme alınabilir.';
+  } else if (results.formApi.body?.includes('501') || results.formApi.status === 501) {
+    results.yorum = '⏳ BAŞVURU BEKLEMEDE — Shopier henüz API erişimini onaylamamış. hello@shopier.com ile iletişime geç.';
+  } else if (results.formApi.body?.includes('imza') || results.formApi.status === 403) {
+    results.yorum = '❌ TOKEN/KEY YANLIŞ — API key veya secret hatalı.';
+  } else {
+    results.yorum = '❓ Bilinmeyen hata: ' + (results.formApi.body || results.formApi.status);
+  }
+
+  res.json(results);
+});
+
+/* ─────────────────────────────────────────────────────
    SHOPİER CALLBACK
 ───────────────────────────────────────────────────── */
 
