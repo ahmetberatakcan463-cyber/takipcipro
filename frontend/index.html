@@ -723,6 +723,25 @@
 
   const BACKEND_URL = 'https://takipcipro-production-6b77.up.railway.app';
 
+  // ---- HATA TEST BUTONU ----
+  (function() {
+    const btn = document.createElement('button');
+    btn.textContent = '🔧 Backend Test';
+    btn.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99999;background:#e11d48;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;';
+    btn.onclick = async () => {
+      btn.textContent = '⏳ Test ediliyor...';
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/vitrin`);
+        const txt = await res.text();
+        alert(`✅ Bağlantı OK (${res.status})\n\n${txt.slice(0,300)}`);
+      } catch(e) {
+        alert(`❌ HATA:\n\n${e.message}\n\nTip: ${e.name}`);
+      }
+      btn.textContent = '🔧 Backend Test';
+    };
+    document.body.appendChild(btn);
+  })();
+
   async function loadServicesToSelect() {
     const select = document.getElementById('productSelect');
     try {
