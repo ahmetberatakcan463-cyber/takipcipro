@@ -849,17 +849,31 @@ app.get('/api/onayla/:mongoId', async (req, res) => {
 ───────────────────────────────────────────────────── */
 app.get('/api/shopier-test', async (req, res) => {
   const results = {};
+  const shopierToken = process.env.SHOPIER_TOKEN || '';
 
-  // 1) REST API testi (JWT token ile)
+  // 1) Products listesi testi
   try {
-    const shopierToken = process.env.SHOPIER_TOKEN || '';
-    const r = await axios.get('https://api.shopier.com/v1/shop', {
+    const r = await axios.get('https://api.shopier.com/v1/products', {
       headers: { Authorization: `Bearer ${shopierToken}` },
       timeout: 8000,
     });
-    results.restApi = { ok: true, status: r.status, data: r.data };
+    results.products = { ok: true, status: r.status, data: r.data };
   } catch (e) {
-    results.restApi = { ok: false, status: e.response?.status, error: e.response?.data || e.message };
+    results.products = { ok: false, status: e.response?.status, error: e.response?.data || e.message };
+  }
+
+  // 2) Ürün oluşturma testi
+  try {
+    const r = await axios.post('https://api.shopier.com/v1/products', {
+      name: 'Test Urun - Silinecek',
+      price: 1,
+    }, {
+      headers: { Authorization: `Bearer ${shopierToken}`, 'Content-Type': 'application/json' },
+      timeout: 8000,
+    });
+    results.createProduct = { ok: true, status: r.status, data: r.data };
+  } catch (e) {
+    results.createProduct = { ok: false, status: e.response?.status, error: e.response?.data || e.message };
   }
 
   // 2) Ödeme form API testi (API_key ile)
