@@ -621,6 +621,7 @@ function shopierOdemeParametreleri({ orderId, totalPrice, buyerName, buyerEmail,
  * Bakiye yetersizse "beklemede" döndür, Telegram'a uyarı gönder.
  */
 app.post('/api/siparis-olustur', siparisSiniri, async (req, res) => {
+  try {
   const serviceId  = Number(req.body.serviceId);
   const quantity   = Number(req.body.quantity);
   const username   = clean(String(req.body.username  || ''), 300);
@@ -715,6 +716,10 @@ Bakiyenizi yükleyin — müşteri otomatik bilgilendirilecek.
     shopierParams,
     shopierUrl:  'https://www.shopier.com/ShowProduct/api_pay4.php',
   });
+  } catch(err) {
+    console.error('[siparis-olustur] HATA:', err.message, err.stack);
+    return res.status(500).json({ success:false, error:'Sunucu hatası: ' + err.message });
+  }
 });
 
 /**
