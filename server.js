@@ -865,7 +865,7 @@ app.get('/api/shopier-test', async (req, res) => {
   // 2) Ürün oluşturma testi
   try {
     const r = await axios.post('https://api.shopier.com/v1/products', {
-      name: 'Test Urun - Silinecek',
+      title: 'Test Urun - Silinecek',
       price: 1,
     }, {
       headers: { Authorization: `Bearer ${shopierToken}`, 'Content-Type': 'application/json' },
