@@ -17,6 +17,7 @@ const rateLimit  = require('express-rate-limit');
 const mongoose   = require('mongoose');
 const fs         = require('fs');
 const path       = require('path');
+const crypto     = require('crypto');
 const Service    = require('./models/Service');
 const Order      = require('./models/Order');
 const Message    = require('./models/Message');
@@ -24,8 +25,11 @@ const Message    = require('./models/Message');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/takipcipro';
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8742741686:AAEelzeJrC9QRD3p8H8L7RAR9KekmF2Cnbs';
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1951697589';
+const TELEGRAM_BOT_TOKEN    = process.env.TELEGRAM_BOT_TOKEN || '8742741686:AAEelzeJrC9QRD3p8H8L7RAR9KekmF2Cnbs';
+const TELEGRAM_CHAT_ID      = process.env.TELEGRAM_CHAT_ID   || '1951697589';
+const SHOPIER_API_KEY       = process.env.SHOPIER_API_KEY    || '';
+const SHOPIER_API_SECRET    = process.env.SHOPIER_API_SECRET || '';
+const BACKEND_URL           = process.env.BACKEND_URL        || 'https://takipcipro-production-6b77.up.railway.app';
 
 /* ─────────────────────────────────────────────────────
    MONGODB BAĞLANTISI
@@ -570,6 +574,46 @@ app.post('/api/admin/sifre-degistir', adminGuard, (req, res) => {
    SHOPİER ENTEGRASYONu
 ───────────────────────────────────────────────────── */
 
+function shopierOdemeParametreleri({ orderId, totalPrice, buyerName, buyerEmail, buyerPhone }) {
+  const randomNr  = Math.floor(Math.random() * 900000) + 100000;
+  const currency  = '0'; // TRY
+  const data      = String(randomNr) + orderId + Number(totalPrice).toFixed(2) + currency;
+  const signature = crypto.createHmac('sha256', SHOPIER_API_SECRET).update(data).digest('base64');
+  const parts     = (buyerName || 'Musteri Muster').trim().split(' ');
+  const ad        = parts[0]               || 'Musteri';
+  const soyad     = parts.slice(1).join(' ') || 'Muster';
+  return {
+    API_key:           SHOPIER_API_KEY,
+    website_index:     '1',
+    platform_order_id: orderId,
+    product_name:      'Instagram Takipci Paketi',
+    product_type:      '1',
+    buyer_name:        ad,
+    buyer_surname:     soyad,
+    buyer_email:       buyerEmail || 'musteri@takipcipro.xyz',
+    buyer_phone:       (buyerPhone || '5000000000').replace(/\D/g,''),
+    buyer_id_nr:       orderId,
+    buyer_account_age: '0',
+    billing_address:   'Turkiye',
+    billing_city:      'Istanbul',
+    billing_country:   'TR',
+    billing_postcode:  '34000',
+    shipping_address:  'Turkiye',
+    shipping_city:     'Istanbul',
+    shipping_country:  'TR',
+    shipping_postcode: '34000',
+    total_order_value: Number(totalPrice).toFixed(2),
+    currency,
+    platform:          '0',
+    is_in_frame:       '0',
+    current_language:  '0',
+    modul_version:     '1.0.0',
+    random_nr:         String(randomNr),
+    signature,
+    callback:          `${BACKEND_URL}/api/shopier-callback`,
+  };
+}
+
 /**
  * POST /api/siparis-olustur
  * Sipariş oluştur, bakiye kontrolü yap.
@@ -643,15 +687,16 @@ Bakiyenizi yükleyin — müşteri otomatik bilgilendirilecek.
     });
   }
 
-  // Bakiye yeterli — siparişi iban_hazir olarak kaydet, IBAN döndür
+  // Bakiye yeterli — siparişi shopier_bekliyor olarak kaydet, ödeme parametrelerini döndür
   const order = await Order.create({
     serviceId, username, quantity,
-    status: 'iban_hazir',
-    error:  'IBAN ödemesi bekleniyor',
+    status: 'shopier_bekliyor',
+    error:  'Shopier ödemesi bekleniyor',
     smmResponse: { orderId, buyerName, buyerEmail, buyerPhone, totalPrice },
   });
 
-  const onayUrl = `https://takipcipro-production-6b77.up.railway.app/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
+  const shopierParams = shopierOdemeParametreleri({ orderId, totalPrice, buyerName, buyerEmail, buyerPhone });
+
   const msg = `🛒 <b>YENİ SİPARİŞ</b>\n\n` +
     `👤 Müşteri: <b>${buyerName}</b>\n` +
     `📱 Instagram: <b>@${username}</b>\n` +
@@ -659,15 +704,16 @@ Bakiyenizi yükleyin — müşteri otomatik bilgilendirilecek.
     `🔢 Adet: <b>${quantity.toLocaleString('tr-TR')}</b>\n` +
     `💰 Tutar: <b>₺${totalPrice.toFixed(2)}</b>\n\n` +
     `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
-    `⏳ Müşteri IBAN ödemesini yapıyor...`;
-  await sendTelegramAlert(msg, [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]);
+    `⏳ Müşteri Shopier ödeme sayfasına yönlendiriliyor...`;
+  await sendTelegramAlert(msg);
 
   return res.json({
-    success:    true,
-    status:     'iban_hazir',
+    success:     true,
+    status:      'shopier_hazir',
     orderId,
     totalPrice,
-    iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
+    shopierParams,
+    shopierUrl:  'https://www.shopier.com/ShowProduct/api_pay4.php',
   });
 });
 
@@ -681,14 +727,23 @@ app.get('/api/siparis-kontrol/:orderId', async (req, res) => {
   const order   = await Order.findOne({ 'smmResponse.orderId': orderId }).lean();
   if (!order) return res.status(404).json({ success:false, error:'Sipariş bulunamadı.' });
 
-  // Zaten iban_hazir durumundaysa tekrar IBAN döndür
-  if (order.status === 'iban_hazir') {
-    return res.json({
-      success:    true,
-      status:     'iban_hazir',
-      totalPrice: order.smmResponse?.totalPrice,
+  // Zaten shopier_bekliyor durumundaysa tekrar Shopier params döndür
+  if (order.status === 'shopier_bekliyor') {
+    const sp = order.smmResponse || {};
+    const shopierParams = shopierOdemeParametreleri({
       orderId,
-      iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
+      totalPrice: sp.totalPrice || 0,
+      buyerName:  sp.buyerName,
+      buyerEmail: sp.buyerEmail,
+      buyerPhone: sp.buyerPhone,
+    });
+    return res.json({
+      success:     true,
+      status:      'shopier_hazir',
+      totalPrice:  sp.totalPrice,
+      orderId,
+      shopierParams,
+      shopierUrl:  'https://www.shopier.com/ShowProduct/api_pay4.php',
     });
   }
 
@@ -707,31 +762,38 @@ app.get('/api/siparis-kontrol/:orderId', async (req, res) => {
       const estimatedCost = (serviceRate / 1000) * order.quantity;
 
       if (Number.isFinite(smmBalance) && Number.isFinite(estimatedCost) && smmBalance >= estimatedCost) {
-        // Bakiye yeter — siparişi iban_hazir'a al
+        // Bakiye yeter — siparişi shopier_bekliyor'a al
         await Order.findByIdAndUpdate(order._id, {
-          status: 'iban_hazir',
-          error:  'IBAN ödemesi bekleniyor',
+          status: 'shopier_bekliyor',
+          error:  'Shopier ödemesi bekleniyor',
         });
 
         const buyerName = order.smmResponse?.buyerName || 'Müşteri';
-        const onayUrl   = `https://takipcipro-production-6b77.up.railway.app/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
+        const sp        = order.smmResponse || {};
         await sendTelegramAlert(
           `✅ <b>BAKİYE YÜKLENDİ — SİPARİŞ HAZIR!</b>\n\n` +
           `👤 Müşteri: <b>${buyerName}</b>\n` +
           `📱 Instagram: <b>@${order.username}</b>\n` +
           `🔢 Adet: <b>${order.quantity.toLocaleString('tr-TR')}</b>\n` +
-          `💰 Tutar: <b>₺${order.smmResponse?.totalPrice?.toFixed(2)}</b>\n\n` +
+          `💰 Tutar: <b>₺${sp.totalPrice?.toFixed(2)}</b>\n\n` +
           `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
-          `⏳ Müşteri IBAN ekranına yönlendirildi.`,
-          [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]
+          `⏳ Müşteri Shopier ödeme sayfasına yönlendiriliyor.`
         );
 
-        return res.json({
-          success:    true,
-          status:     'iban_hazir',
-          totalPrice: order.smmResponse?.totalPrice,
+        const shopierParams = shopierOdemeParametreleri({
           orderId,
-          iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
+          totalPrice: sp.totalPrice || 0,
+          buyerName:  sp.buyerName,
+          buyerEmail: sp.buyerEmail,
+          buyerPhone: sp.buyerPhone,
+        });
+        return res.json({
+          success:     true,
+          status:      'shopier_hazir',
+          totalPrice:  sp.totalPrice,
+          orderId,
+          shopierParams,
+          shopierUrl:  'https://www.shopier.com/ShowProduct/api_pay4.php',
         });
       }
     } catch (e) {
@@ -774,6 +836,90 @@ app.get('/api/onayla/:mongoId', async (req, res) => {
     return res.send(`<h2 style="font-family:sans-serif;color:green;">✅ Sipariş onaylandı! @${order.username} → SMM #${apiData.order}</h2>`);
   } catch(e) {
     return res.status(500).send(`<h2>❌ Hata: ${e.message}</h2>`);
+  }
+});
+
+/* ─────────────────────────────────────────────────────
+   SHOPİER CALLBACK
+───────────────────────────────────────────────────── */
+
+/**
+ * POST /api/shopier-callback
+ * Shopier ödeme tamamlandığında bu endpoint'i çağırır.
+ * İmza doğrulandıktan sonra SMM panele otomatik sipariş gönderilir.
+ */
+app.post('/api/shopier-callback', express.urlencoded({ extended: false }), async (req, res) => {
+  const { platform_order_id, random_nr, signature, payment_id } = req.body;
+
+  if (!platform_order_id || !random_nr || !signature) {
+    console.warn('[SHOPIER] Eksik callback parametresi:', req.body);
+    return res.status(200).send('OK');
+  }
+
+  // İmza doğrulama
+  const data     = String(random_nr) + platform_order_id;
+  const expected = crypto.createHmac('sha256', SHOPIER_API_SECRET).update(data).digest('base64');
+  if (signature !== expected) {
+    console.warn('[SHOPIER] Geçersiz imza!', { received: signature, expected });
+    return res.status(200).send('OK');
+  }
+
+  const order = await Order.findOne({ 'smmResponse.orderId': platform_order_id }).catch(() => null);
+  if (!order) {
+    console.warn('[SHOPIER] Sipariş bulunamadı:', platform_order_id);
+    return res.status(200).send('OK');
+  }
+
+  if (order.status === 'success') {
+    console.log('[SHOPIER] Sipariş zaten işlendi:', platform_order_id);
+    return res.status(200).send('OK');
+  }
+
+  console.log(`[SHOPIER] Ödeme alındı! ${platform_order_id} | Ödeme: ${payment_id}`);
+
+  try {
+    const apiData = await smmCall({
+      action:   'add',
+      service:  order.serviceId,
+      link:     order.username,
+      quantity: order.quantity,
+    });
+
+    if (apiData.error || !apiData.order) {
+      await Order.findByIdAndUpdate(order._id, { status: 'error', error: String(apiData.error || 'SMM order ID yok') });
+      await sendTelegramAlert(
+        `❌ <b>SHOPIER ÖDEME ALINDI AMA SMM HATASI!</b>\n\n` +
+        `📱 @${order.username}\n` +
+        `🔑 <code>${platform_order_id}</code>\n` +
+        `💳 Shopier: <code>${payment_id}</code>\n` +
+        `❗ Hata: ${apiData.error || 'Bilinmiyor'}`
+      );
+      return res.status(200).send('OK');
+    }
+
+    await Order.findByIdAndUpdate(order._id, {
+      status:     'success',
+      smmOrderId: String(apiData.order),
+      error:      null,
+    });
+
+    const sp = order.smmResponse || {};
+    await sendTelegramAlert(
+      `✅ <b>ÖDEME ALINDI & SİPARİŞ GÖNDERİLDİ!</b>\n\n` +
+      `👤 ${sp.buyerName || 'Müşteri'}\n` +
+      `📱 @${order.username}\n` +
+      `🔢 ${order.quantity.toLocaleString('tr-TR')} adet\n` +
+      `💰 ₺${sp.totalPrice?.toFixed(2)}\n` +
+      `🔑 <code>${platform_order_id}</code>\n` +
+      `💳 Shopier: <code>${payment_id}</code>\n` +
+      `🚀 SMM Order: <code>${apiData.order}</code>`
+    );
+
+    res.status(200).send('OK');
+  } catch (err) {
+    console.error('[SHOPIER CALLBACK] SMM hatası:', err.message);
+    await sendTelegramAlert(`⚠️ <b>SHOPIER CALLBACK HATASI!</b>\n${err.message}\nSipariş: ${platform_order_id}`);
+    res.status(200).send('OK');
   }
 });
 
