@@ -1423,7 +1423,10 @@ app.get('/api/saglik', (req, res) => {
     zaman: new Date().toISOString(), port: PORT });
 });
 
-app.use((req, res) => res.status(404).json({ success:false, error:'Endpoint bulunamadı.' }));
+// Frontend static dosyaları servis et
+app.use(express.static(path.join(__dirname, 'frontend')));
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'frontend', 'index.html')));
+
 app.use((err, req, res, next) => {
   console.error('[SUNUCU HATASI]', err.message);
   res.status(500).json({ success:false, error:'Sunucu hatası.' });
