@@ -581,7 +581,12 @@
     <div id="ibanScreen" style="display:none;text-align:center;padding:8px 0;">
       <div style="font-size:48px;margin-bottom:12px;">✅</div>
       <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Oluşturuldu!</h3>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">Lütfen aşağıdaki IBAN'a ödeme yapın.</p>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">Lütfen aşağıdaki IBAN'a ödeme yapın.</p>
+
+      <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.5);border-radius:10px;padding:14px;margin-bottom:16px;text-align:left;">
+        <div style="font-size:13px;font-weight:700;color:#ff4444;margin-bottom:4px;"><i class="fa-solid fa-circle-exclamation"></i> ÖNEMLİ: Transferin hızla onaylanması için açıklama kısmına SADECE size verilen sipariş numarasını yazınız.</div>
+        <div style="font-size:13px;font-weight:700;color:#ff4444;">Güvenliğiniz için açıklama alanına sipariş takipçi paket gibi ifadeler asla eklemeyiniz.</div>
+      </div>
 
       <div style="background:#1a1a1a;border:1px solid rgba(201,162,39,.3);border-radius:14px;padding:20px;text-align:left;margin-bottom:16px;">
         <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;">
@@ -589,12 +594,8 @@
           <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Alıcı</span><strong>HATİCE KARASU</strong></div>
           <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--muted);">IBAN</span><strong style="font-family:monospace;color:var(--gold2);font-size:13px;">TR22 0006 2000 5790 0006 6525 03</strong></div>
           <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Tutar</span><strong id="ibanTutar" style="color:#22c55e;font-size:16px;"></strong></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:var(--muted);">Sipariş No</span><strong id="ibanAciklama" style="font-family:monospace;font-size:14px;color:#fff;letter-spacing:1px;"></strong></div>
         </div>
-      </div>
-
-      <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.5);border-radius:10px;padding:14px;margin-bottom:8px;">
-        <div style="font-size:13px;font-weight:700;color:#ff4444;margin-bottom:10px;text-align:center;"><i class="fa-solid fa-circle-exclamation"></i> ÖNEMLİ: Transferin hızla onaylanması için açıklama kısmına SADECE size verilen sipariş numarasını yazınız. Güvenliğiniz için açıklama alanına sipariş takipçi paket gibi ifadeler asla eklemeyiniz.</div>
-        <div id="ibanAciklama" style="font-family:monospace;font-size:18px;font-weight:700;color:#fff;letter-spacing:1px;text-align:center;"></div>
       </div>
 
       <div style="font-size:11px;color:var(--muted);margin-bottom:20px;">Ödemeniz kontrol edildikten sonra servisiniz aktif edilecektir.</div>
