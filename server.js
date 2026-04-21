@@ -688,16 +688,15 @@ Bakiyenizi yükleyin — müşteri otomatik bilgilendirilecek.
     });
   }
 
-  // Bakiye yeterli — siparişi shopier_bekliyor olarak kaydet, ödeme parametrelerini döndür
+  // Bakiye yeterli — siparişi iban_hazir olarak kaydet, IBAN döndür
   const order = await Order.create({
     serviceId, username, quantity,
-    status: 'shopier_bekliyor',
-    error:  'Shopier ödemesi bekleniyor',
+    status: 'iban_hazir',
+    error:  'IBAN ödemesi bekleniyor',
     smmResponse: { orderId, buyerName, buyerEmail, buyerPhone, totalPrice },
   });
 
-  const shopierParams = shopierOdemeParametreleri({ orderId, totalPrice, buyerName, buyerEmail, buyerPhone });
-
+  const onayUrl = `${BACKEND_URL}/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
   const msg = `🛒 <b>YENİ SİPARİŞ</b>\n\n` +
     `👤 Müşteri: <b>${buyerName}</b>\n` +
     `📱 Instagram: <b>@${username}</b>\n` +
@@ -705,16 +704,15 @@ Bakiyenizi yükleyin — müşteri otomatik bilgilendirilecek.
     `🔢 Adet: <b>${quantity.toLocaleString('tr-TR')}</b>\n` +
     `💰 Tutar: <b>₺${totalPrice.toFixed(2)}</b>\n\n` +
     `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
-    `⏳ Müşteri Shopier ödeme sayfasına yönlendiriliyor...`;
-  await sendTelegramAlert(msg);
+    `⏳ Müşteri IBAN ödemesini yapıyor...`;
+  await sendTelegramAlert(msg, [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]);
 
   return res.json({
-    success:     true,
-    status:      'shopier_hazir',
+    success:    true,
+    status:     'iban_hazir',
     orderId,
     totalPrice,
-    shopierParams,
-    shopierUrl:  'https://www.shopier.com/ShowProduct/api_pay4.php',
+    iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
   });
   } catch(err) {
     console.error('[siparis-olustur] HATA:', err.message, err.stack);
@@ -732,23 +730,14 @@ app.get('/api/siparis-kontrol/:orderId', async (req, res) => {
   const order   = await Order.findOne({ 'smmResponse.orderId': orderId }).lean();
   if (!order) return res.status(404).json({ success:false, error:'Sipariş bulunamadı.' });
 
-  // Zaten shopier_bekliyor durumundaysa tekrar Shopier params döndür
-  if (order.status === 'shopier_bekliyor') {
-    const sp = order.smmResponse || {};
-    const shopierParams = shopierOdemeParametreleri({
-      orderId,
-      totalPrice: sp.totalPrice || 0,
-      buyerName:  sp.buyerName,
-      buyerEmail: sp.buyerEmail,
-      buyerPhone: sp.buyerPhone,
-    });
+  // Zaten iban_hazir durumundaysa tekrar IBAN döndür
+  if (order.status === 'iban_hazir') {
     return res.json({
-      success:     true,
-      status:      'shopier_hazir',
-      totalPrice:  sp.totalPrice,
+      success:    true,
+      status:     'iban_hazir',
+      totalPrice: order.smmResponse?.totalPrice,
       orderId,
-      shopierParams,
-      shopierUrl:  'https://www.shopier.com/ShowProduct/api_pay4.php',
+      iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
     });
   }
 
@@ -767,14 +756,15 @@ app.get('/api/siparis-kontrol/:orderId', async (req, res) => {
       const estimatedCost = (serviceRate / 1000) * order.quantity;
 
       if (Number.isFinite(smmBalance) && Number.isFinite(estimatedCost) && smmBalance >= estimatedCost) {
-        // Bakiye yeter — siparişi shopier_bekliyor'a al
+        // Bakiye yeter — siparişi iban_hazir'a al
         await Order.findByIdAndUpdate(order._id, {
-          status: 'shopier_bekliyor',
-          error:  'Shopier ödemesi bekleniyor',
+          status: 'iban_hazir',
+          error:  'IBAN ödemesi bekleniyor',
         });
 
         const buyerName = order.smmResponse?.buyerName || 'Müşteri';
         const sp        = order.smmResponse || {};
+        const onayUrl   = `${BACKEND_URL}/api/onayla/${order._id}?k=${encodeURIComponent(process.env.INTERNAL_API_KEY || 'TakipciPro2024!')}`;
         await sendTelegramAlert(
           `✅ <b>BAKİYE YÜKLENDİ — SİPARİŞ HAZIR!</b>\n\n` +
           `👤 Müşteri: <b>${buyerName}</b>\n` +
@@ -782,23 +772,16 @@ app.get('/api/siparis-kontrol/:orderId', async (req, res) => {
           `🔢 Adet: <b>${order.quantity.toLocaleString('tr-TR')}</b>\n` +
           `💰 Tutar: <b>₺${sp.totalPrice?.toFixed(2)}</b>\n\n` +
           `🔑 Sipariş No: <code>${orderId}</code>\n\n` +
-          `⏳ Müşteri Shopier ödeme sayfasına yönlendiriliyor.`
+          `⏳ Müşteri IBAN ekranına yönlendirildi.`,
+          [[{ text: '✅ Onayla & Gönder', url: onayUrl }]]
         );
 
-        const shopierParams = shopierOdemeParametreleri({
-          orderId,
-          totalPrice: sp.totalPrice || 0,
-          buyerName:  sp.buyerName,
-          buyerEmail: sp.buyerEmail,
-          buyerPhone: sp.buyerPhone,
-        });
         return res.json({
-          success:     true,
-          status:      'shopier_hazir',
-          totalPrice:  sp.totalPrice,
+          success:    true,
+          status:     'iban_hazir',
+          totalPrice: sp.totalPrice,
           orderId,
-          shopierParams,
-          shopierUrl:  'https://www.shopier.com/ShowProduct/api_pay4.php',
+          iban: { no: 'TR22 0006 2000 5790 0006 6525 03', banka: 'GARANTİ BBVA', alici: 'HATİCE KARASU' },
         });
       }
     } catch (e) {
