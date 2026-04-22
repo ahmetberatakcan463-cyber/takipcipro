@@ -18,6 +18,7 @@ const mongoose   = require('mongoose');
 const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
+const cron       = require('node-cron');
 const Service    = require('./models/Service');
 const Order      = require('./models/Order');
 const Message    = require('./models/Message');
@@ -135,6 +136,67 @@ async function sendTelegramAlert(message, inlineButtons) {
   } catch (e) {
     console.warn('[TELEGRAM] Bildirim gönderilemedi:', e.message);
   }
+}
+
+// SosyalBizde servislerini çek, kaldırılanları tespit et ve Telegram'a bildir
+async function servisSenkronize() {
+  console.log('[SERVİS SYNC] Başlıyor...');
+  const data = await smmCall({ action: 'services' });
+
+  if (!Array.isArray(data)) {
+    throw new Error('API beklenmeyen yanıt döndü.');
+  }
+
+  // API'den gelen tüm servis ID'leri
+  const apiIdler = new Set(data.map(s => Number(s.service)));
+
+  // DB'deki aktif servisleri çek
+  const dbServisleri = await Service.find({ aktif: true }).lean();
+
+  // API'de olmayan ama DB'de aktif olan = kaldırılan servisler
+  const kaldirilanlar = dbServisleri.filter(s => !apiIdler.has(s.servisId));
+
+  for (const s of kaldirilanlar) {
+    const vitrinUyarisi = s.vitrin
+      ? `\n🚨 <b>Bu servis şu an VİTRİNDE görünüyor! Hemen kaldırın veya değiştirin.</b>`
+      : '';
+    const uyari =
+      `⚠️ <b>SERVİS KALDIRILDI!</b>\n\n` +
+      `📋 Servis Adı: <b>${s.orijinalAd || s.vitrinAd || 'Bilinmiyor'}</b>\n` +
+      `🔢 Servis No: <code>${s.servisId}</code>\n` +
+      `📌 Kategori: ${s.kategori || '-'}` +
+      vitrinUyarisi;
+
+    await sendTelegramAlert(uyari);
+    await Service.updateOne({ servisId: s.servisId }, { $set: { aktif: false, guncellendi: new Date() } });
+    console.log(`[SERVİS SYNC] Kaldırıldı bildirimi: ${s.servisId} — ${s.orijinalAd}`);
+  }
+
+  // Mevcut servisleri güncelle / yeni servisleri ekle
+  let eklenen = 0, guncellenen = 0;
+  for (const s of data) {
+    const mevcutDoc = await Service.findOne({ servisId: Number(s.service) });
+    const apiData = {
+      kategori:    s.category || '',
+      orijinalAd:  s.name || '',
+      fiyat:       parseFloat(s.rate) || 0,
+      min:         parseInt(s.min) || 10,
+      max:         parseInt(s.max) || 10000,
+      aktif:       true,
+      guncellendi: new Date(),
+    };
+    if (mevcutDoc) {
+      await Service.updateOne({ servisId: Number(s.service) }, { $set: apiData });
+      guncellenen++;
+    } else {
+      await Service.create({ servisId: Number(s.service), ...apiData,
+        vitrin: false, populer: false, sira: 999, musteriTL: 0, eskiFiyatTL: 0 });
+      eklenen++;
+    }
+  }
+
+  console.log(`[SERVİS SYNC] +${eklenen} eklendi, ~${guncellenen} güncellendi, -${kaldirilanlar.length} kaldırıldı`);
+  return { toplam: data.length, eklenen, guncellenen, kaldirilanSayisi: kaldirilanlar.length };
 }
 
 // Sipariş log dosyası
@@ -444,39 +506,12 @@ app.post('/api/admin/toplu-vitrin', adminGuard, async (req, res) => {
 /**
  * POST /api/admin/servisleri-guncelle
  * SosyalBizde'den servisleri çekip MongoDB'yi günceller.
- * (npm run servisleri-cek ile de yapılabilir, bu endpoint sunucu içinden tetikler)
+ * Kaldırılan servisler tespit edilir ve Telegram'a bildirim gönderilir.
  */
 app.post('/api/admin/servisleri-guncelle', adminGuard, async (req, res) => {
   try {
-    console.log('[SERVİS GÜNCELLE] Başlıyor...');
-    const data = await smmCall({ action:'services' });
-
-    if (!Array.isArray(data))
-      return res.status(500).json({ success:false, error:'API beklenmeyen yanıt döndü.' });
-
-    let eklenen=0, guncellenen=0;
-    for (const s of data) {
-      const mevcutDoc = await Service.findOne({ servisId: Number(s.service) });
-      const apiData = {
-        kategori:   s.category||'',
-        orijinalAd: s.name||'',
-        fiyat:      parseFloat(s.rate)||0,
-        min:        parseInt(s.min)||10,
-        max:        parseInt(s.max)||10000,
-        guncellendi: new Date(),
-      };
-      if (mevcutDoc) {
-        await Service.updateOne({ servisId:Number(s.service) }, { $set:apiData });
-        guncellenen++;
-      } else {
-        await Service.create({ servisId:Number(s.service), ...apiData,
-          vitrin:false, aktif:true, populer:false, sira:999,
-          musteriTL:0, eskiFiyatTL:0 });
-        eklenen++;
-      }
-    }
-    console.log(`[SERVİS GÜNCELLE] +${eklenen} eklendi, ~${guncellenen} güncellendi`);
-    res.json({ success:true, toplam:data.length, eklenen, guncellenen });
+    const sonuc = await servisSenkronize();
+    res.json({ success:true, ...sonuc });
   } catch(e) {
     res.status(500).json({ success:false, error:e.message });
   }
@@ -1431,6 +1466,32 @@ app.use((err, req, res, next) => {
   console.error('[SUNUCU HATASI]', err.message);
   res.status(500).json({ success:false, error:'Sunucu hatası.' });
 });
+
+/* ─────────────────────────────────────────────────────
+   GÜNLÜK OTOMATİK SERVİS SENKRONIZASYONU
+   Her gün saat 06:00 Türkiye saati (03:00 UTC)
+───────────────────────────────────────────────────── */
+cron.schedule('0 3 * * *', async () => {
+  console.log('[CRON] Günlük servis senkronizasyonu başlıyor...');
+  try {
+    const sonuc = await servisSenkronize();
+    const ozet =
+      `🔄 <b>Günlük Servis Güncellemesi Tamamlandı</b>\n\n` +
+      `✅ Toplam: ${sonuc.toplam} servis\n` +
+      `➕ Yeni: ${sonuc.eklenen}\n` +
+      `🔄 Güncellenen: ${sonuc.guncellenen}\n` +
+      (sonuc.kaldirilanSayisi > 0
+        ? `⚠️ Kaldırılan: ${sonuc.kaldirilanSayisi} (yukarıdaki uyarılara bak)`
+        : `✔️ Kaldırılan: yok`);
+    await sendTelegramAlert(ozet);
+    console.log(`[CRON] Tamamlandı: ${JSON.stringify(sonuc)}`);
+  } catch (e) {
+    console.error('[CRON] Servis sync hatası:', e.message);
+    await sendTelegramAlert(`⚠️ <b>Günlük servis güncelleme HATASI:</b>\n${e.message}`);
+  }
+}, { timezone: 'Europe/Istanbul' });
+
+console.log('[CRON] Günlük servis senkronizasyonu planlandı (her gün 06:00 TR)');
 
 /* ─────────────────────────────────────────────────────
    BAŞLAT
