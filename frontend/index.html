@@ -596,7 +596,16 @@
     <div id="beklemdeScreen" style="display:none;text-align:center;padding:8px 0;">
       <div style="font-size:48px;margin-bottom:12px;">⏳</div>
       <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Oluşturuluyor...</h3>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">Siparişiniz işleme alındı ve en kısa sürede tamamlanacak. Herhangi bir ödeme yapmanıza gerek yoktur.</p>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">Siparişiniz işleme alındı ve en kısa sürede tamamlanacak. Herhangi bir ödeme yapmanıza gerek yoktur.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;border:1px solid rgba(201,162,39,.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;text-align:left;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Sipariş Numaranız</div>
+          <strong id="beklemdeOrderId" style="font-family:monospace;font-size:15px;color:#fff;letter-spacing:1px;"></strong>
+        </div>
+        <button id="beklemdeKopyalaBtn" onclick="copyOrderId('beklemdeOrderId','beklemdeKopyalaBtn')" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:var(--gold2);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+          <i class="fa-regular fa-copy"></i> Kopyala
+        </button>
+      </div>
       <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px;color:#f59e0b;">
         <i class="fa-solid fa-circle-info"></i> İşleminiz hazır olduğunda servisiniz otomatik olarak aktif edilecektir.
       </div>
@@ -607,7 +616,16 @@
     <div id="ibanScreen" style="display:none;text-align:center;padding:8px 0;">
       <div style="font-size:48px;margin-bottom:12px;">✅</div>
       <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Oluşturuldu!</h3>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">Lütfen aşağıdaki IBAN'a ödeme yapın.</p>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">Lütfen aşağıdaki IBAN'a ödeme yapın.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;border:1px solid rgba(201,162,39,.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;text-align:left;">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Sipariş Numaranız</div>
+          <strong id="ibanOrderIdDisplay" style="font-family:monospace;font-size:15px;color:#fff;letter-spacing:1px;"></strong>
+        </div>
+        <button id="ibanKopyalaBtn" onclick="copyOrderId('ibanOrderIdDisplay','ibanKopyalaBtn')" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:var(--gold2);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+          <i class="fa-regular fa-copy"></i> Kopyala
+        </button>
+      </div>
 
       <div style="background:rgba(239,68,68,.15);border:2px solid rgba(239,68,68,.5);border-radius:10px;padding:14px;margin-bottom:16px;text-align:left;">
         <div style="font-size:13px;font-weight:700;color:#ff4444;margin-bottom:4px;"><i class="fa-solid fa-circle-exclamation"></i> ÖNEMLİ: Transferin hızla onaylanması için açıklama kısmına SADECE size verilen sipariş numarasını yazınız.</div>
@@ -981,8 +999,25 @@
   function showIbanScreen(data) {
     document.getElementById('beklemdeScreen').style.display = 'none';
     document.getElementById('ibanScreen').style.display = 'block';
-    document.getElementById('ibanTutar').textContent    = `₺${Number(data.totalPrice).toLocaleString('tr-TR', {minimumFractionDigits:2})}`;
-    document.getElementById('ibanAciklama').textContent = data.orderId;
+    document.getElementById('ibanTutar').textContent        = `₺${Number(data.totalPrice).toLocaleString('tr-TR', {minimumFractionDigits:2})}`;
+    document.getElementById('ibanAciklama').textContent     = data.orderId;
+    document.getElementById('ibanOrderIdDisplay').textContent = data.orderId;
+  }
+
+  function copyOrderId(elementId, btnId) {
+    const text = document.getElementById(elementId).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById(btnId);
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Kopyalandı!';
+      btn.style.color = '#22c55e';
+      btn.style.borderColor = 'rgba(34,197,94,.5)';
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    });
   }
 
   function startOrderPolling(orderId) {
@@ -1081,6 +1116,7 @@
       } else {
         // Bakiye yetersiz — bekletme ekranı aç ve polling başlat
         document.getElementById('beklemdeScreen').style.display = 'block';
+        document.getElementById('beklemdeOrderId').textContent = data.orderId;
         startOrderPolling(data.orderId);
       }
 
