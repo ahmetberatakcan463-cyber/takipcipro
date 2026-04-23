@@ -596,16 +596,7 @@
     <div id="beklemdeScreen" style="display:none;text-align:center;padding:8px 0;">
       <div style="font-size:48px;margin-bottom:12px;">⏳</div>
       <h3 style="color:var(--gold2);margin:0 0 6px;">Siparişiniz Oluşturuluyor...</h3>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 12px;">Siparişiniz işleme alındı ve en kısa sürede tamamlanacak. Herhangi bir ödeme yapmanıza gerek yoktur.</p>
-      <div style="display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;border:1px solid rgba(201,162,39,.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;text-align:left;">
-        <div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Sipariş Numaranız</div>
-          <strong id="beklemdeOrderId" style="font-family:monospace;font-size:15px;color:#fff;letter-spacing:1px;"></strong>
-        </div>
-        <button id="beklemdeKopyalaBtn" onclick="copyOrderId('beklemdeOrderId','beklemdeKopyalaBtn')" style="background:rgba(201,162,39,.15);border:1px solid rgba(201,162,39,.4);color:var(--gold2);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;white-space:nowrap;">
-          <i class="fa-regular fa-copy"></i> Kopyala
-        </button>
-      </div>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 20px;">Siparişiniz işleme alındı ve en kısa sürede tamamlanacak. Herhangi bir ödeme yapmanıza gerek yoktur.</p>
       <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px;color:#f59e0b;">
         <i class="fa-solid fa-circle-info"></i> İşleminiz hazır olduğunda servisiniz otomatik olarak aktif edilecektir.
       </div>
@@ -1116,7 +1107,6 @@
       } else {
         // Bakiye yetersiz — bekletme ekranı aç ve polling başlat
         document.getElementById('beklemdeScreen').style.display = 'block';
-        document.getElementById('beklemdeOrderId').textContent = data.orderId;
         startOrderPolling(data.orderId);
       }
 

@@ -672,7 +672,7 @@ app.post('/api/siparis-olustur', siparisSiniri, async (req, res) => {
 
   const pricePerK  = servis.musteriTL || 0;
   const totalPrice = parseFloat((pricePerK * quantity / 1000).toFixed(2));
-  const orderId    = 'TP-' + Date.now();
+  const orderId    = 'TP-' + Date.now().toString(36).toUpperCase().slice(-6) + Math.random().toString(36).substring(2,4).toUpperCase();
 
   // Bakiye kontrolü
   let bakiyeYeterli = true;
